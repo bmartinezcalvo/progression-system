@@ -10,10 +10,15 @@ import {
   cdxIconMenu,
   cdxIconSearch,
   cdxIconTray,
-  cdxIconUserAvatar,
-  cdxIconUserAvatarOutline,
   cdxIconWatchlist
 } from '@wikimedia/codex-icons';
+
+const props = defineProps( {
+  showFooter: {
+    type: Boolean,
+    default: true
+  }
+} );
 
 const emit = defineEmits( [ 'go-home', 'go-article' ] );
 
@@ -121,7 +126,7 @@ const mobileLinks = [
             aria-label="Homepage"
             @click="emit( 'go-home' )"
           >
-            <CdxIcon :icon="cdxIconUserAvatarOutline" />
+            <span class="chrome-header__user-avatar">Ca</span>
           </CdxButton>
         </div>
       </nav>
@@ -150,12 +155,13 @@ const mobileLinks = [
             <span class="chrome-header__notify-badge" aria-hidden="true">1</span>
           </CdxButton>
           <CdxButton
+            class="chrome-header__user-button"
             weight="quiet"
             size="large"
             aria-label="Homepage"
             @click="emit( 'go-home' )"
           >
-            <CdxIcon :icon="cdxIconUserAvatarOutline" />
+            <span class="chrome-header__user-avatar">Ca</span>
           </CdxButton>
         </div>
       </nav>
@@ -165,7 +171,7 @@ const mobileLinks = [
       <slot />
     </main>
 
-    <footer class="chrome-footer chrome-footer--desktop">
+    <footer v-if="props.showFooter" class="chrome-footer chrome-footer--desktop">
       <div class="chrome-footer__inner">
         <p class="chrome-footer__credit">This is a prototype made with ProtoWiki.</p>
         <ul class="chrome-footer__links">
@@ -176,7 +182,7 @@ const mobileLinks = [
       </div>
     </footer>
 
-    <footer class="chrome-footer chrome-footer--mobile">
+    <footer v-if="props.showFooter" class="chrome-footer chrome-footer--mobile">
       <a class="chrome-footer__last-edited" href="#">
         <CdxIcon :icon="cdxIconHistory" size="small" />
         <span class="chrome-footer__last-edited-text">
@@ -278,8 +284,15 @@ const mobileLinks = [
 .chrome-header__mobile-actions {
   display: flex;
   align-items: center;
-  gap: var(--spacing-25);
+  gap: 0;
   margin-inline-start: auto;
+}
+
+.chrome-header__mobile-actions :deep(.cdx-button) {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
 }
 
 .chrome-header__notify-button {
@@ -510,7 +523,7 @@ const mobileLinks = [
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.2rem;
+    gap: 0;
     margin-inline-start: auto;
   }
 
@@ -530,9 +543,10 @@ const mobileLinks = [
   }
 
   .chrome-header__desktop-actions :deep(.cdx-button) {
-    min-width: 32px;
-    height: 32px;
-    padding: 0.5rem 0.4rem;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    padding: 0;
   }
 
   .chrome-header__dropdown-chevron {
@@ -547,8 +561,23 @@ const mobileLinks = [
   }
 
   .chrome-header__user-button:deep(.cdx-button) {
-    gap: var(--spacing-25);
+    gap: 0;
     overflow: visible;
+  }
+
+  .chrome-header__user-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--border-color-subtle);
+    border-radius: 50%;
+    background: #edf3ff;
+    color: var(--color-emphasized);
+    font-size: 16px;
+    line-height: 22px;
+    font-weight: var(--font-weight-regular);
   }
 
   .chrome-footer--desktop {
@@ -599,15 +628,17 @@ const mobileLinks = [
   }
 
   .chrome-header__desktop-actions :deep(.cdx-button:not(.chrome-header__user-button)) {
-    width: 40px;
-    height: 40px;
-    padding: 0.7rem;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    padding: 0;
   }
 
   .chrome-header__user-button:deep(.cdx-button) {
-    min-width: 40px;
-    height: 40px;
-    padding: 0.45rem 0.5rem;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    padding: 0;
   }
 
   .chrome-header__notify-badge {

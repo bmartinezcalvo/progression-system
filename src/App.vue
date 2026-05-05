@@ -24,6 +24,8 @@ const currentSurveyStepIndex = ref( 0 );
 const currentView = ref( 'survey' );
 const resumeSurveyStepIndex = ref( 1 );
 const currentQuizIndex = ref( 0 );
+const currentSuggestedEditIndex = ref( 0 );
+const suggestedEditOrdinal = ref( 1 );
 const recentlyCompletedTaskKey = ref( '' );
 const showArticlePathEntry = ref( false );
 let articleScrollTimeout = null;
@@ -36,6 +38,8 @@ const selectedQuizAnswers = ref( {} );
 
 const userName = 'CaptainBird';
 const userInitials = 'Ca';
+const wikiMinuteWelcomeImage =
+  'https://commons.wikimedia.org/wiki/Special:Redirect/file/A%20Wiki%20Minute%20-%20extract%20021.jpg';
 const articleTitle = 'Paris';
 const articleSections = [
   {
@@ -288,7 +292,7 @@ const progressionTasks = ref( [
     title: 'First suggested edit',
     description: 'A small and easy edit picked for you',
     duration: '5 min',
-    buttonLabel: 'Start edit',
+    buttonLabel: 'See suggested edits',
     action: 'edit',
     completed: false
   },
@@ -307,6 +311,56 @@ const editsCount = ref( 0 );
 const thanksCount = ref( 0 );
 const streakCount = ref( 0 );
 const isProgressionExpanded = ref( false );
+const suggestedEdits = ref( [
+  {
+    key: 'isabella-duplicate-link',
+    articleTitle: 'Isabella I of Castile',
+    articleDescription: 'Queen of Castile and León',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Isabella_I_of_Castile.jpg/320px-Isabella_I_of_Castile.jpg',
+    articleSnippet:
+      'Isabella and Ferdinand are known for being the first monarchs to be referred to as the queen and king of Spain, respectively. Their actions included completion of the Reconquista, the Alhambra Decree which ordered the mass expulsion of Jews from Spain, initiating the Spanish Inquisition, financing Christopher Columbus\'s 1492 voyage to the New World, and establishing the Spanish Empire.',
+    taskTitle: 'Remove duplicate link',
+    taskDescription:
+      'This link appears more than once in this section. Help readers navigate more easily by removing repeated links.',
+    question: 'Remove this extra link from the paragraph?',
+    successTitle: 'Removed duplicate link',
+    successMessage: 'Thank you for improving Wikipedia.',
+    primaryLabel: 'Remove link',
+    secondaryLabel: 'Dismiss'
+  },
+  {
+    key: 'isabella-uk-spelling',
+    articleTitle: 'Isabella I of Castile',
+    articleDescription: 'Queen of Castile and León',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Isabella_I_of_Castile.jpg/320px-Isabella_I_of_Castile.jpg',
+    articleSnippet:
+      'Girón. Desiring to depose Henry and establish Infante Alfonso on the throne, Pacheco and his followers circulated rumors that Infanta Joanna was actually the child of Beltrán de la Cueva and demanded that Alfonso be named the King\'s successor.',
+    taskTitle: 'Change English spelling',
+    taskDescription:
+      'This word uses a different variety of English than the one used in the rest of this article.',
+    question: 'Replace “rumors” with “rumours”?',
+    successTitle: 'Updated the spelling',
+    successMessage: 'Thanks for keeping the article consistent.',
+    primaryLabel: 'Apply change',
+    secondaryLabel: 'Dismiss'
+  },
+  {
+    key: 'paris-date-link',
+    articleTitle: 'Paris',
+    articleDescription: 'Capital and largest city of France',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/Tour_Eiffel_Wikimedia_Commons.jpg/320px-Tour_Eiffel_Wikimedia_Commons.jpg',
+    articleSnippet:
+      'Paris developed from a Celtic settlement on the Île de la Cité into a major political, cultural, and commercial center of Europe. Over centuries the city expanded on both banks of the Seine.',
+    taskTitle: 'Link a key date',
+    taskDescription:
+      'Add a helpful link so readers can quickly learn more about this historical period.',
+    question: 'Add a link to “Île de la Cité”?',
+    successTitle: 'Linked a key topic',
+    successMessage: 'That link will help readers explore the topic.',
+    primaryLabel: 'Add link',
+    secondaryLabel: 'Dismiss'
+  }
+] );
 
 const currentSurveyStep = computed( () => surveySteps[ currentSurveyStepIndex.value ] );
 const currentQuizStep = computed( () => quizSteps[ currentQuizIndex.value ] );
@@ -333,6 +387,29 @@ const currentQuizAnswer = computed(
 );
 const currentQuizAnswerIsCorrect = computed(
   () => currentQuizAnswer.value === currentQuizStep.value.correctKey
+);
+const remainingSuggestedEdits = computed(
+  () => suggestedEdits.value.filter( ( suggestion ) => !suggestion.resolved )
+);
+const currentSuggestedEdit = computed(
+  () => remainingSuggestedEdits.value[ currentSuggestedEditIndex.value ] || null
+);
+const currentSurveyQuestionNumber = computed( () => {
+  switch ( currentSurveyStep.value ) {
+    case 'reason':
+      return 1;
+    case 'topics':
+      return 2;
+    case 'languages':
+      return 3;
+    case 'email':
+      return 4;
+    default:
+      return 0;
+  }
+} );
+const shouldShowChromeFooter = computed(
+  () => ![ 'survey', 'quiz', 'suggested-edits' ].includes( currentView.value )
 );
 
 const surveyProgressValue = computed( () => {
@@ -465,6 +542,11 @@ function completeCurrentTask() {
     return;
   }
 
+  if ( task.action === 'edit' ) {
+    goToSuggestedEdits();
+    return;
+  }
+
   task.completed = true;
   recentlyCompletedTaskKey.value = task.key;
   setTimeout( () => {
@@ -472,12 +554,6 @@ function completeCurrentTask() {
       recentlyCompletedTaskKey.value = '';
     }
   }, 550 );
-
-  if ( task.action === 'edit' ) {
-    editsCount.value += 1;
-    streakCount.value = Math.max( streakCount.value, 1 );
-  }
-
   if ( task.action === 'enrich' ) {
     editsCount.value += 4;
     thanksCount.value += 2;
@@ -501,6 +577,54 @@ function goToHomepage() {
 
 function goToArticle() {
   currentView.value = 'article';
+}
+
+function goToSuggestedEdits() {
+  currentSuggestedEditIndex.value = 0;
+  suggestedEditOrdinal.value = 1;
+  currentView.value = 'suggested-edits';
+}
+
+function resolveSuggestedEdit( mode, suggestionKey ) {
+  const suggestion = currentSuggestedEdit.value;
+
+  if ( !suggestion || suggestion.key !== suggestionKey ) {
+    return;
+  }
+
+  suggestion.resolving = mode;
+
+  if ( mode === 'complete' && !progressionTasks.value.find( ( task ) => task.key === 'first-edit' )?.completed ) {
+    progressionTasks.value = progressionTasks.value.map( ( task ) =>
+      task.key === 'first-edit' ? { ...task, completed: true } : task
+    );
+    recentlyCompletedTaskKey.value = 'first-edit';
+    editsCount.value += 1;
+    streakCount.value = Math.max( streakCount.value, 1 );
+    setTimeout( () => {
+      if ( recentlyCompletedTaskKey.value === 'first-edit' ) {
+        recentlyCompletedTaskKey.value = '';
+      }
+    }, 550 );
+  }
+
+  setTimeout( () => {
+    suggestion.resolved = true;
+    suggestion.resolving = '';
+    suggestedEditOrdinal.value += 1;
+
+    const remaining = remainingSuggestedEdits.value;
+    if ( remaining.length === 0 ) {
+      currentView.value = 'home';
+      currentSuggestedEditIndex.value = 0;
+      return;
+    }
+
+    currentSuggestedEditIndex.value = Math.min(
+      currentSuggestedEditIndex.value,
+      remaining.length - 1
+    );
+  }, mode === 'complete' ? 1700 : 420 );
 }
 
 function handleArticleScroll() {
@@ -577,9 +701,19 @@ function getQuizOptionState( optionKey ) {
 </script>
 
 <template>
-  <ChromeWrapper @go-home="goToHomepage" @go-article="goToArticle">
+  <ChromeWrapper
+    :show-footer="shouldShowChromeFooter"
+    @go-home="goToHomepage"
+    @go-article="goToArticle"
+  >
     <section v-if="currentView === 'survey'" class="survey-page">
       <div v-if="currentSurveyStep === 'welcome'" class="survey-page__panel survey-page__panel--welcome">
+        <img
+          class="survey-page__hero-image"
+          :src="wikiMinuteWelcomeImage"
+          alt="Illustration of Wikipedia contributors around a laptop"
+        >
+
         <div class="survey-page__copy">
           <h1 class="survey-page__title">
             Welcome, {{ userName }}
@@ -615,17 +749,22 @@ function getQuizOptionState( optionKey ) {
       <div v-else class="survey-page__panel survey-page__panel--step">
         <div class="survey-page__meta">
           <div class="survey-page__skip-row">
-            <button class="survey-page__skip-link" type="button" @click="skipSurvey">
+            <CdxButton class="survey-page__skip-link" weight="quiet" @click="skipSurvey">
               Skip
-            </button>
+            </CdxButton>
           </div>
 
           <div class="survey-page__progress">
-            <CdxProgressBar
-              aria-label="Survey progress"
-              :value="surveyProgressValue"
-              :max="100"
-            />
+            <div class="survey-page__progress-bar-wrap">
+              <CdxProgressBar
+                aria-label="Survey progress"
+                :value="surveyProgressValue"
+                :max="100"
+              />
+            </div>
+            <p class="survey-page__progress-text">
+              <strong>{{ currentSurveyQuestionNumber }}</strong> of 4
+            </p>
           </div>
         </div>
 
@@ -753,23 +892,19 @@ function getQuizOptionState( optionKey ) {
             weight="quiet"
             @click="goToPreviousSurveyStep"
           >
-            <template #icon>
-              <CdxIcon :icon="cdxIconArrowPrevious" />
-            </template>
+            <CdxIcon :icon="cdxIconArrowPrevious" />
             Previous
           </CdxButton>
 
           <CdxButton
-            v-if="currentSurveyStep !== 'email' ? canAdvanceSurvey : true"
+            v-if="canAdvanceSurvey"
             class="survey-page__nav-link survey-page__nav-link--next"
             weight="quiet"
             action="progressive"
             @click="currentSurveyStep === 'email' ? completeSurvey() : goToNextSurveyStep()"
           >
             {{ currentSurveyStep === 'email' ? 'Complete' : 'Next' }}
-            <template #icon>
-              <CdxIcon :icon="cdxIconArrowNext" />
-            </template>
+            <CdxIcon :icon="cdxIconArrowNext" />
           </CdxButton>
         </div>
       </div>
@@ -886,6 +1021,106 @@ function getQuizOptionState( optionKey ) {
             <CdxIcon :icon="cdxIconArrowNext" />
           </template>
         </CdxButton>
+      </div>
+    </section>
+
+    <section v-else-if="currentView === 'suggested-edits'" class="suggested-edits-page">
+      <header class="suggested-edits-page__header">
+        <CdxButton
+          class="suggested-edits-page__back"
+          weight="quiet"
+          aria-label="Go back"
+          @click="goToHomepage"
+        >
+          <CdxIcon :icon="cdxIconArrowPrevious" />
+        </CdxButton>
+        <h1 class="suggested-edits-page__header-title">
+          Suggested edits
+        </h1>
+      </header>
+
+      <p class="suggested-edits-page__count">
+        <strong>{{ suggestedEditOrdinal }}</strong> of 32 suggestions
+      </p>
+
+      <div class="suggested-edits-page__viewport">
+        <div
+          class="suggested-edits-page__track"
+          :style="{ transform: `translateX(calc(${ currentSuggestedEditIndex * -88 }% - ${ currentSuggestedEditIndex * 16 }px))` }"
+        >
+          <article
+            v-for="suggestion in remainingSuggestedEdits"
+            :key="suggestion.key"
+            class="suggested-edit-card"
+            :class="{
+              'suggested-edit-card--active': suggestion.key === currentSuggestedEdit?.key,
+              'suggested-edit-card--completing': suggestion.resolving === 'complete',
+              'suggested-edit-card--dismissing': suggestion.resolving === 'dismiss'
+            }"
+          >
+            <div class="suggested-edit-card__body">
+              <img
+                class="suggested-edit-card__thumbnail"
+                :src="suggestion.articleImage"
+                :alt="suggestion.articleTitle"
+              >
+              <div class="suggested-edit-card__copy">
+                <h2 class="suggested-edit-card__title">
+                  {{ suggestion.articleTitle }}
+                </h2>
+                <p class="suggested-edit-card__description">
+                  {{ suggestion.articleDescription }}
+                </p>
+              </div>
+
+              <div class="suggested-edit-card__excerpt">
+                {{ suggestion.articleSnippet }}
+              </div>
+            </div>
+
+            <div
+              v-if="suggestion.resolving === 'complete'"
+              class="suggested-edit-card__panel suggested-edit-card__panel--success"
+            >
+              <div class="suggested-edit-card__success-row">
+                <span class="suggested-edit-card__success-icon">
+                  <CdxIcon :icon="cdxIconCheck" />
+                </span>
+                <strong>{{ suggestion.successTitle }}</strong>
+              </div>
+              <p class="suggested-edit-card__panel-description">
+                {{ suggestion.successMessage }}
+              </p>
+            </div>
+
+            <div
+              v-else
+              class="suggested-edit-card__panel suggested-edit-card__panel--task"
+            >
+              <h3 class="suggested-edit-card__panel-title">
+                {{ suggestion.taskTitle }}
+              </h3>
+              <p class="suggested-edit-card__panel-description">
+                {{ suggestion.taskDescription }}
+              </p>
+              <p class="suggested-edit-card__question">
+                {{ suggestion.question }}
+              </p>
+
+              <div class="suggested-edit-card__actions">
+                <CdxButton @click="resolveSuggestedEdit( 'complete', suggestion.key )">
+                  {{ suggestion.primaryLabel }}
+                </CdxButton>
+                <CdxButton @click="resolveSuggestedEdit( 'dismiss', suggestion.key )">
+                  {{ suggestion.secondaryLabel }}
+                </CdxButton>
+                <button class="suggested-edit-card__menu" type="button" aria-label="More actions">
+                  ...
+                </button>
+              </div>
+            </div>
+          </article>
+        </div>
       </div>
     </section>
 
@@ -1148,14 +1383,20 @@ function getQuizOptionState( optionKey ) {
 .survey-page,
 .homepage,
 .quiz-page,
+.suggested-edits-page,
 .article-page {
   min-height: 100%;
   background-color: var(--background-color-base);
 }
 
+.survey-page {
+  background-color: var(--background-color-neutral-subtle);
+}
+
 .survey-page__panel,
 .homepage,
 .quiz-page,
+.suggested-edits-page,
 .article-page {
   max-width: 30rem;
   padding: var(--spacing-150);
@@ -1171,8 +1412,22 @@ function getQuizOptionState( optionKey ) {
   gap: var(--spacing-300);
 }
 
+.survey-page__hero-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--border-color-subtle);
+  border-radius: var(--border-radius-base);
+  background-color: var(--background-color-base);
+  object-fit: cover;
+}
+
+.survey-page__panel--welcome .survey-page__copy {
+  margin-top: -28px;
+}
+
 .survey-page__panel--step {
-  gap: var(--spacing-200);
+  gap: 24px;
 }
 
 .survey-page__copy {
@@ -1219,8 +1474,42 @@ function getQuizOptionState( optionKey ) {
   line-height: 1.45;
 }
 
-.survey-page__progress :deep(.cdx-progress-bar) {
+.survey-page__progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.survey-page__progress-bar-wrap {
+  flex: 1 1 auto;
+}
+
+.survey-page__progress-bar-wrap :deep(.cdx-progress-bar) {
   width: 100%;
+}
+
+.survey-page__progress-bar-wrap :deep(.cdx-progress-bar__bar),
+.survey-page__progress-bar-wrap :deep(.cdx-progress-bar__fill),
+.quiz-page__progress-block :deep(.cdx-progress-bar__bar),
+.quiz-page__progress-block :deep(.cdx-progress-bar__fill) {
+  height: 8px;
+}
+
+.survey-page__progress-bar-wrap :deep(.cdx-progress-bar__bar),
+.survey-page__progress-bar-wrap :deep(.cdx-progress-bar__fill) {
+  height: 8px;
+}
+
+.survey-page__progress-text {
+  margin: 0;
+  color: var(--color-subtle);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.survey-page__progress-text strong {
+  color: var(--color-emphasized);
+  font-weight: var(--font-weight-bold);
 }
 
 .survey-page__welcome-actions {
@@ -1238,7 +1527,7 @@ function getQuizOptionState( optionKey ) {
 .survey-page__meta {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-75);
+  gap: 24px;
 }
 
 .survey-page__skip-row {
@@ -1246,31 +1535,35 @@ function getQuizOptionState( optionKey ) {
   justify-content: flex-end;
 }
 
-.survey-page__skip-link,
+.survey-page__skip-link {
+  align-self: flex-end;
+}
+
+.survey-page__skip-link:deep(.cdx-button),
 .homepage__see-all {
-  border: 0;
-  padding: 0;
-  background: transparent;
   font-size: 1rem;
   font-weight: var(--font-weight-bold);
 }
 
-.survey-page__skip-link {
-  color: var(--color-emphasized);
+.homepage__see-all {
+  border: 0;
+  padding: 0;
+  background: transparent;
 }
 
 .survey-page__options {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-50);
+  gap: 12px;
 }
 
 .survey-card {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-50);
+  gap: 4px;
   width: 100%;
   border: var(--border-base);
+  border-radius: var(--border-radius-base);
   background-color: var(--background-color-base);
   padding: 12px;
   text-align: left;
@@ -1310,7 +1603,7 @@ function getQuizOptionState( optionKey ) {
 .survey-page__chips {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--spacing-75);
+  gap: 12px;
 }
 
 .survey-chip {
@@ -1341,6 +1634,17 @@ function getQuizOptionState( optionKey ) {
   gap: var(--spacing-50);
 }
 
+.survey-chip__icon {
+  width: 16px;
+  height: 16px;
+  justify-content: center;
+}
+
+.survey-chip__icon :deep(.cdx-icon) {
+  width: 16px;
+  height: 16px;
+}
+
 .survey-page__field {
   display: flex;
   flex-direction: column;
@@ -1363,13 +1667,7 @@ function getQuizOptionState( optionKey ) {
   margin-top: auto;
   padding-top: 12px;
   padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-  background:
-    linear-gradient(
-      180deg,
-      rgb(255 255 255 / 0) 0%,
-      rgb(255 255 255 / 0.96) 24%,
-      rgb(255 255 255 / 1) 100%
-    );
+  background-color: var(--background-color-neutral-subtle);
 }
 
 .survey-page__nav-link--next {
@@ -1389,17 +1687,18 @@ function getQuizOptionState( optionKey ) {
 .homepage__profile {
   display: flex;
   align-items: center;
-  gap: var(--spacing-100);
+  gap: 12px;
 }
 
 .homepage__avatar {
-  width: 3.5rem;
-  height: 3.5rem;
+  width: 48px;
+  height: 48px;
   border: 1px solid var(--border-color-subtle);
   border-radius: 50%;
   background: #edf3ff;
   color: var(--color-emphasized);
-  font-size: 1.5rem;
+  font-size: 16px;
+  line-height: 22px;
   font-weight: var(--font-weight-regular);
 }
 
@@ -1416,6 +1715,9 @@ function getQuizOptionState( optionKey ) {
 }
 
 .homepage__tab {
+  color: var(--color-subtle);
+  font-size: 14px;
+  line-height: 22px;
   text-decoration: none;
 }
 
@@ -1535,7 +1837,7 @@ function getQuizOptionState( optionKey ) {
   align-self: center;
   position: relative;
   z-index: 1;
-  margin-bottom: 8px;
+  margin-bottom: 0;
   color: var(--color-emphasized);
   pointer-events: auto;
 }
@@ -1545,14 +1847,17 @@ function getQuizOptionState( optionKey ) {
   display: flex;
   justify-content: center;
   align-items: flex-end;
-  height: 104px;
-  margin-top: -88px;
+  height: 80px;
+  margin-top: -64px;
   pointer-events: none;
 }
 
 .homepage__see-all-gradient {
   position: absolute;
-  inset: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 80px;
   background: linear-gradient(180deg, rgb(255 255 255 / 0) 0%, rgb(255 255 255 / 0.95) 58%, rgb(255 255 255 / 1) 100%);
 }
 
@@ -1578,15 +1883,20 @@ function getQuizOptionState( optionKey ) {
 .module__mentor-copy {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-50);
+  gap: 0;
 }
 
 .module__title--small {
   margin: 0;
 }
 
+.module__mentor-copy .module__body {
+  margin-top: 4px;
+}
+
 .module__mentor-button {
   align-self: flex-start;
+  margin-top: 8px;
 }
 
 .homepage__impact-grid {
@@ -1600,6 +1910,8 @@ function getQuizOptionState( optionKey ) {
   flex-direction: column;
   gap: var(--spacing-25);
   border: var(--border-base);
+  border-color: var(--border-color-muted);
+  border-radius: var(--border-radius-base);
   padding: 12px;
   background-color: var(--background-color-base);
 }
@@ -1869,6 +2181,193 @@ function getQuizOptionState( optionKey ) {
   color: var(--color-progressive);
 }
 
+.suggested-edits-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 100%;
+  background-color: var(--background-color-neutral-subtle);
+}
+
+.suggested-edits-page__header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color-subtle);
+}
+
+.suggested-edits-page__header-title {
+  margin: 0;
+  color: var(--color-emphasized);
+  font-family: var(--font-family-system-sans);
+  font-size: 20px;
+  line-height: 30px;
+  font-weight: var(--font-weight-bold);
+}
+
+.suggested-edits-page__count {
+  margin: 0;
+  color: var(--color-subtle);
+  font-size: 14px;
+  line-height: 20px;
+  text-align: center;
+}
+
+.suggested-edits-page__count strong {
+  color: var(--color-emphasized);
+  font-weight: var(--font-weight-bold);
+}
+
+.suggested-edits-page__viewport {
+  overflow: hidden;
+  margin-inline: -12px;
+  padding-inline: 12px;
+}
+
+.suggested-edits-page__track {
+  display: flex;
+  gap: 16px;
+  transition: transform 280ms ease;
+}
+
+.suggested-edit-card {
+  width: 88%;
+  flex: 0 0 88%;
+  border: 1px solid var(--border-color-subtle);
+  border-radius: var(--border-radius-base);
+  background-color: var(--background-color-base);
+  overflow: hidden;
+  opacity: 0.72;
+  transition:
+    transform 260ms ease,
+    opacity 260ms ease;
+}
+
+.suggested-edit-card--active {
+  opacity: 1;
+}
+
+.suggested-edit-card--completing {
+  transform: scale(0.985);
+}
+
+.suggested-edit-card--dismissing {
+  opacity: 0;
+  transform: translateX(-20px) scale(0.98);
+}
+
+.suggested-edit-card__body {
+  padding: 12px;
+}
+
+.suggested-edit-card__thumbnail {
+  display: block;
+  width: 62px;
+  height: 62px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border-color-subtle);
+  border-radius: var(--border-radius-base);
+  object-fit: cover;
+}
+
+.suggested-edit-card__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color-subtle);
+}
+
+.suggested-edit-card__title {
+  margin: 0;
+  color: var(--color-emphasized);
+  font-family: var(--font-family-heading-main);
+  font-size: 20px;
+  line-height: 30px;
+  font-weight: var(--font-weight-regular);
+}
+
+.suggested-edit-card__description {
+  margin: 0;
+  color: var(--color-subtle);
+  font-size: 16px;
+  line-height: 22px;
+}
+
+.suggested-edit-card__excerpt {
+  padding-top: 12px;
+  color: var(--color-base);
+  font-size: 16px;
+  line-height: 22px;
+}
+
+.suggested-edit-card__panel {
+  padding: 12px;
+}
+
+.suggested-edit-card__panel--task {
+  background-color: var(--background-color-neutral);
+}
+
+.suggested-edit-card__panel--success {
+  background-color: var(--background-color-success-subtle);
+}
+
+.suggested-edit-card__panel-title,
+.suggested-edit-card__question {
+  margin: 0;
+  color: var(--color-emphasized);
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: var(--font-weight-bold);
+}
+
+.suggested-edit-card__panel-description {
+  margin: 8px 0 0 0;
+  color: var(--color-base);
+  font-size: 16px;
+  line-height: 22px;
+}
+
+.suggested-edit-card__question {
+  margin-top: 16px;
+}
+
+.suggested-edit-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.suggested-edit-card__menu {
+  border: 0;
+  background: transparent;
+  color: var(--color-subtle);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.suggested-edit-card__success-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-emphasized);
+}
+
+.suggested-edit-card__success-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: var(--color-icon-success);
+  color: var(--color-inverted);
+}
+
 .progression-item__marker :deep(.cdx-icon) {
   width: 12px;
   height: 12px;
@@ -1904,7 +2403,7 @@ function getQuizOptionState( optionKey ) {
 .module-card-link:deep(.cdx-card) {
   border-color: var(--border-color-interactive);
   border-radius: var(--border-radius-base);
-  background-color: var(--background-color-neutral-subtle);
+  background-color: var(--background-color-neutral-subtle) !important;
 }
 
 .module-card-link:deep(.cdx-card__text__title),
@@ -2180,6 +2679,7 @@ function getQuizOptionState( optionKey ) {
   .survey-page__panel,
   .homepage,
   .quiz-page,
+  .suggested-edits-page,
   .article-page {
     max-width: 33rem;
     padding: var(--spacing-150) var(--spacing-100);
