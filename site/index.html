@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Progression System Prototype</title>
+    <style>
+      :root {
+        --bg: #eaecf0;
+        --surface: #fff;
+        --surface-subtle: #f8f9fa;
+        --border: #c8ccd1;
+        --border-muted: #dadde3;
+        --text: #202122;
+        --subtle: #54595d;
+        --link: #36c;
+        --progressive: #36c;
+        --progressive-subtle: #dce7ff;
+        --success: #14866d;
+        --success-subtle: #eaf3f0;
+      }
+
+      * { box-sizing: border-box; }
+      html, body { margin: 0; min-height: 100%; font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); }
+      a { color: var(--link); text-decoration: none; }
+      button { font: inherit; cursor: pointer; }
+
+      .page {
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        padding: 24px 16px;
+      }
+
+      .phone {
+        width: 100%;
+        max-width: 390px;
+        min-height: calc(100vh - 48px);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 36px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+      }
+
+      .browser {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--border-muted);
+      }
+
+      .address {
+        flex: 1;
+        border-radius: 999px;
+        background: #f1f1f1;
+        padding: 10px 16px;
+        color: #444;
+      }
+
+      .wiki-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 16px;
+        background: #eef1f5;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .wordmark {
+        font-family: Georgia, serif;
+        font-size: 22px;
+        letter-spacing: 0.02em;
+      }
+
+      .content {
+        flex: 1;
+        padding: 20px 16px 88px;
+      }
+
+      .view { display: none; }
+      .view.active { display: block; }
+
+      .title-serif { margin: 0; font-family: Georgia, serif; font-size: 28px; line-height: 38px; }
+      .title-sans { margin: 0; font-size: 20px; line-height: 30px; font-weight: 700; }
+      .body { margin: 0; font-size: 16px; line-height: 28px; }
+      .subtle { color: var(--subtle); }
+
+      .stack-8 > * + * { margin-top: 8px; }
+      .stack-12 > * + * { margin-top: 12px; }
+      .stack-16 > * + * { margin-top: 16px; }
+      .stack-24 > * + * { margin-top: 24px; }
+
+      .btn {
+        border: 1px solid var(--border);
+        background: var(--surface);
+        padding: 12px 14px;
+        border-radius: 2px;
+      }
+      .btn.primary {
+        border-color: var(--progressive);
+        background: var(--progressive);
+        color: #fff;
+        font-weight: 700;
+      }
+
+      .card {
+        border: 2px solid var(--border);
+        border-radius: 2px;
+        background: var(--surface);
+        padding: 12px;
+      }
+
+      .card.selected {
+        border-color: var(--progressive);
+        background: var(--progressive-subtle);
+      }
+
+      .profile {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .avatar {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        border: 1px solid var(--border);
+        background: #edf3ff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        font-family: Georgia, serif;
+      }
+
+      .tabs {
+        display: flex;
+        gap: 16px;
+        border-bottom: 1px solid var(--border-muted);
+        padding-bottom: 8px;
+      }
+
+      .tabs a.active {
+        color: var(--text);
+        font-weight: 700;
+        text-decoration: underline;
+        text-underline-offset: 4px;
+      }
+
+      .path-item {
+        display: grid;
+        grid-template-columns: 32px 1fr;
+        gap: 12px;
+      }
+
+      .marker-col {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .marker {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        font-weight: 700;
+        background: #fff;
+      }
+
+      .marker.active {
+        background: var(--progressive);
+        color: #fff;
+        box-shadow: 0 0 0 3px var(--progressive-subtle);
+      }
+
+      .marker.complete {
+        background: var(--success);
+        border-color: var(--success);
+        color: #fff;
+      }
+
+      .line {
+        width: 1.5px;
+        flex: 1;
+        min-height: 42px;
+        background: var(--border-muted);
+      }
+
+      .line.complete { background: var(--success); }
+
+      .path-title-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .path-title { font-size: 16px; line-height: 22px; font-weight: 700; margin: 0; }
+      .path-duration, .path-desc, .path-status { font-size: 14px; line-height: 22px; }
+      .path-duration, .path-desc { color: var(--subtle); }
+      .path-status { color: var(--success); display: flex; gap: 6px; align-items: center; }
+
+      .module-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+      }
+
+      .help {
+        background: var(--surface-subtle);
+      }
+
+      .article-title {
+        margin: 0;
+        font-family: Georgia, serif;
+        font-size: 32px;
+        line-height: 38px;
+      }
+
+      .article-tabs {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border-muted);
+      }
+
+      .article-section-title {
+        margin: 0;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border-muted);
+        font-family: Georgia, serif;
+        font-size: 24px;
+        line-height: 32px;
+      }
+
+      .floating-entry {
+        position: fixed;
+        left: 50%;
+        bottom: 24px;
+        transform: translateX(-50%) translateY(18px);
+        width: calc(100% - 32px);
+        max-width: 358px;
+        border: 1px solid var(--border-muted);
+        border-radius: 2px;
+        background: var(--surface-subtle);
+        padding: 12px;
+        box-shadow: 0 6px 16px rgba(0,0,0,.12);
+        display: none;
+        align-items: flex-start;
+        gap: 12px;
+        opacity: 0;
+        transition: transform .22s ease, opacity .22s ease;
+      }
+
+      .floating-entry.visible {
+        display: flex;
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+
+      .floating-marker {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: var(--progressive);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        margin-top: -1px;
+        flex-shrink: 0;
+      }
+
+      .floating-title {
+        margin: 0;
+        font-size: 14px;
+        line-height: 22px;
+        font-weight: 700;
+      }
+
+      .floating-meta {
+        margin: 4px 0 0;
+        color: var(--subtle);
+        font-size: 14px;
+        line-height: 22px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="phone">
+        <div class="browser">
+          <span>⌂</span>
+          <div class="address">en.m.wikipedia.org/w</div>
+          <span>⇪</span>
+          <span>⑦</span>
+          <span>⋮</span>
+        </div>
+        <div class="wiki-header">
+          <span>☰</span>
+          <div class="wordmark">Wikipedia</div>
+          <div style="display:flex;gap:12px;align-items:center">
+            <button id="searchBtn" class="btn" style="border:0;padding:0;background:transparent">⌕</button>
+            <span>🔔</span>
+            <button id="homeBtn" class="btn" style="border:0;padding:0;background:transparent">◯</button>
+          </div>
+        </div>
+
+        <main class="content" id="scrollArea">
+          <section id="survey" class="view active">
+            <div class="stack-24">
+              <div class="stack-8">
+                <h1 class="title-serif">Welcome, CaptainBird</h1>
+                <p class="body" style="font-size:18px;line-height:28px">Wikipedia is built by people like you.</p>
+                <p class="body">Respond four quick questions to customize your experience.</p>
+              </div>
+              <div class="stack-12" style="margin-top:48px">
+                <button id="startSurvey" class="btn primary" style="width:100%">Customize experience</button>
+                <button id="skipSurvey" class="btn" style="width:100%">Skip</button>
+              </div>
+            </div>
+          </section>
+
+          <section id="home" class="view">
+            <div class="stack-16">
+              <div class="profile">
+                <div class="avatar">Ca</div>
+                <div>
+                  <h1 class="title-serif">CaptainBirds</h1>
+                  <p class="body subtle" style="font-size:14px;line-height:22px">Joined today • Beginner editor</p>
+                </div>
+              </div>
+
+              <nav class="tabs">
+                <a class="active" href="#">Homepage</a>
+                <a href="#">User page</a>
+                <a href="#">Talk</a>
+              </nav>
+
+              <div class="stack-16">
+                <div class="path-item">
+                  <div class="marker-col">
+                    <div class="marker complete">✓</div>
+                    <div class="line complete"></div>
+                  </div>
+                  <div class="stack-8">
+                    <div class="path-title-row"><h2 class="path-title">Complete Welcome Survey</h2><span class="path-duration">1 min</span></div>
+                    <div class="path-desc">Respond four quick questions to personalize your experience</div>
+                    <div class="path-status">✓ Completed</div>
+                  </div>
+                </div>
+
+                <div class="path-item">
+                  <div class="marker-col">
+                    <div class="marker">2</div>
+                    <div class="line"></div>
+                  </div>
+                  <div class="stack-8">
+                    <div class="path-title-row"><h2 class="path-title">Watch a Wiki Minute video</h2><span class="path-duration">1 min</span></div>
+                    <div class="path-desc">60-second intro to how Wikipedia is written, sourced, and edited</div>
+                    <button class="btn primary" style="width:max-content">Watch video →</button>
+                  </div>
+                </div>
+
+                <div class="path-item">
+                  <div class="marker-col">
+                    <div class="marker active">3</div>
+                    <div class="line"></div>
+                  </div>
+                  <div class="stack-8">
+                    <div class="path-title-row"><h2 class="path-title">Five Pillars quiz</h2><span class="path-duration">15 min</span></div>
+                    <div class="path-desc">Review the core principles that guide editing on Wikipedia</div>
+                    <button id="quizBtn" class="btn primary" style="width:max-content">Review pillars →</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div style="display:flex;gap:12px">
+                  <img src="https://images.unsplash.com/photo-1500375592092-40eb2168fd21?auto=format&fit=crop&w=120&q=80" alt="" style="width:40px;height:40px;border-radius:50%;border:1px solid var(--border);object-fit:cover" />
+                  <div class="stack-8">
+                    <div style="font-size:16px;line-height:22px;font-weight:700">Raydann is your mentor</div>
+                    <div class="path-desc">You’ve been assigned an experienced editor to help you with editing</div>
+                    <button class="btn">Ask your mentor</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="module-grid">
+                <div class="card"><div style="font-size:16px;font-weight:700">0/5</div><div class="path-desc">edits</div></div>
+                <div class="card"><div style="font-size:16px;font-weight:700">0</div><div class="path-desc">thanks</div></div>
+                <div class="card"><div style="font-size:16px;font-weight:700">0</div><div class="path-desc">streak days</div></div>
+              </div>
+
+              <div class="card help">
+                <div style="font-size:16px;line-height:22px;font-weight:700">Get help with editing</div>
+                <div class="path-desc">Ask the help desk or read help pages</div>
+              </div>
+            </div>
+          </section>
+
+          <section id="article" class="view">
+            <div class="stack-16">
+              <div>
+                <h1 class="article-title">Paris</h1>
+                <p class="path-desc">Capital and most populous city of France</p>
+              </div>
+              <nav class="article-tabs">
+                <a href="#">Article</a><a href="#">Talk</a><a href="#">Read</a><a href="#">Edit</a><a href="#">View history</a>
+              </nav>
+              <p class="body"><strong>Paris</strong> is the capital and most populous city of France. Located on the Seine River, it has long been a major center of politics, commerce, science, and the arts.</p>
+              <p class="body">The city is globally recognized for its architecture, museums, and role in European history. It is one of the world’s leading tourist destinations and an important transport hub.</p>
+              <div class="card help">
+                <div style="font-size:16px;line-height:22px;font-weight:700">Contents</div>
+                <ol style="margin:8px 0 0;padding-left:18px">
+                  <li><a href="#">History</a></li>
+                  <li><a href="#">Geography</a></li>
+                  <li><a href="#">Culture</a></li>
+                </ol>
+              </div>
+              <section class="stack-12">
+                <h2 class="article-section-title">History</h2>
+                <p class="body">Paris developed from a Celtic settlement on the Île de la Cité into a major political, cultural, and commercial center of Europe. Over centuries the city expanded on both banks of the Seine and became closely associated with art, science, and revolution.</p>
+              </section>
+              <section class="stack-12">
+                <h2 class="article-section-title">Geography</h2>
+                <p class="body">The city lies in north-central France on a broad bend of the Seine River. Paris is organized into twenty arrondissements and is surrounded by dense suburbs that form one of the largest metropolitan regions in Europe.</p>
+              </section>
+              <section class="stack-12">
+                <h2 class="article-section-title">Culture</h2>
+                <p class="body">Paris is known for its museums, architecture, fashion, literature, and cuisine. Landmarks such as the Eiffel Tower, the Louvre, and Notre-Dame make it one of the most visited cities in the world.</p>
+              </section>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <button id="floatingEntry" class="floating-entry" type="button">
+      <span class="floating-marker">3</span>
+      <span style="flex:1;min-width:0;text-align:left">
+        <span class="floating-title">Continue your path</span>
+        <span class="floating-meta">3 of 5 steps • Five Pillars quiz</span>
+      </span>
+      <span style="color:var(--subtle)">›</span>
+    </button>
+
+    <script>
+      const survey = document.getElementById('survey');
+      const home = document.getElementById('home');
+      const article = document.getElementById('article');
+      const searchBtn = document.getElementById('searchBtn');
+      const homeBtn = document.getElementById('homeBtn');
+      const startSurvey = document.getElementById('startSurvey');
+      const skipSurvey = document.getElementById('skipSurvey');
+      const quizBtn = document.getElementById('quizBtn');
+      const floatingEntry = document.getElementById('floatingEntry');
+      let idleTimer = null;
+
+      function show(view) {
+        [survey, home, article].forEach((el) => el.classList.remove('active'));
+        view.classList.add('active');
+        floatingEntry.classList.remove('visible');
+      }
+
+      startSurvey.addEventListener('click', () => show(home));
+      skipSurvey.addEventListener('click', () => show(home));
+      homeBtn.addEventListener('click', () => show(home));
+      quizBtn.addEventListener('click', () => alert('Five Pillars quiz entry point'));
+      searchBtn.addEventListener('click', () => show(article));
+      floatingEntry.addEventListener('click', () => show(home));
+
+      function resetArticleIdle() {
+        if (!article.classList.contains('active')) return;
+        floatingEntry.classList.remove('visible');
+        window.clearTimeout(idleTimer);
+        idleTimer = window.setTimeout(() => {
+          if (article.classList.contains('active')) {
+            floatingEntry.classList.add('visible');
+          }
+        }, 2000);
+      }
+
+      window.addEventListener('scroll', resetArticleIdle, { passive: true });
+      document.getElementById('scrollArea').addEventListener('scroll', resetArticleIdle, { passive: true });
+    </script>
+  </body>
+</html>
