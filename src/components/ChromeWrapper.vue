@@ -15,7 +15,7 @@ import {
   cdxIconWatchlist
 } from '@wikimedia/codex-icons';
 
-const emit = defineEmits( [ 'go-home' ] );
+const emit = defineEmits( [ 'go-home', 'go-article' ] );
 
 const WIKIPEDIA_WORDMARK_EN =
   'https://en.wikipedia.org/static/images/mobile/copyright/wikipedia-wordmark-en-25.svg';
@@ -85,7 +85,7 @@ const mobileLinks = [
               <CdxIcon :icon="cdxIconSearch" />
             </template>
           </CdxTextInput>
-          <CdxButton class="chrome-header__search-submit">
+          <CdxButton class="chrome-header__search-submit" @click="emit( 'go-article' )">
             Search
           </CdxButton>
         </div>
@@ -95,6 +95,7 @@ const mobileLinks = [
             class="chrome-header__search-toggle"
             weight="quiet"
             aria-label="Search"
+            @click="emit( 'go-article' )"
           >
             <CdxIcon :icon="cdxIconSearch" />
           </CdxButton>
@@ -141,7 +142,7 @@ const mobileLinks = [
         </a>
 
         <div class="chrome-header__mobile-actions">
-          <CdxButton weight="quiet" size="large" aria-label="Search">
+          <CdxButton weight="quiet" size="large" aria-label="Search" @click="emit( 'go-article' )">
             <CdxIcon :icon="cdxIconSearch" />
           </CdxButton>
           <CdxButton class="chrome-header__notify-button" weight="quiet" size="large" aria-label="Notifications">

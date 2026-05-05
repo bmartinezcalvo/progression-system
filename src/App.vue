@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { CdxButton, CdxCard, CdxIcon, CdxProgressBar, CdxTextInput } from '@wikimedia/codex';
 import {
   cdxIconAdd,
@@ -13,19 +13,44 @@ import {
 } from '@wikimedia/codex-icons';
 
 import ChromeWrapper from './components/ChromeWrapper.vue';
+import encyclopediaPillarImage from './assets/five-pillars/encyclopedia.svg';
+import neutralPillarImage from './assets/five-pillars/neutral.svg';
+import freeContentPillarImage from './assets/five-pillars/free-content.svg';
+import civilityPillarImage from './assets/five-pillars/civility.svg';
+import noRulesPillarImage from './assets/five-pillars/no-rules.svg';
 
 const surveySteps = [ 'welcome', 'reason', 'topics', 'languages', 'email' ];
 const currentSurveyStepIndex = ref( 0 );
 const currentView = ref( 'survey' );
 const resumeSurveyStepIndex = ref( 1 );
+const currentQuizIndex = ref( 0 );
+const recentlyCompletedTaskKey = ref( '' );
+const showArticlePathEntry = ref( false );
+let articleScrollTimeout = null;
 
 const selectedReason = ref( '' );
 const selectedTopics = ref( [] );
 const selectedLanguages = ref( [ 'English', 'Spanish' ] );
 const email = ref( '' );
+const selectedQuizAnswers = ref( {} );
 
 const userName = 'CaptainBird';
 const userInitials = 'Ca';
+const articleTitle = 'Paris';
+const articleSections = [
+  {
+    title: 'History',
+    body: 'Paris developed from a Celtic settlement on the Île de la Cité into a major political, cultural, and commercial center of Europe. Over centuries the city expanded on both banks of the Seine and became closely associated with art, science, and revolution.'
+  },
+  {
+    title: 'Geography',
+    body: 'The city lies in north-central France on a broad bend of the Seine River. Paris is organized into twenty arrondissements and is surrounded by dense suburbs that form one of the largest metropolitan regions in Europe.'
+  },
+  {
+    title: 'Culture',
+    body: 'Paris is known for its museums, architecture, fashion, literature, and cuisine. Landmarks such as the Eiffel Tower, the Louvre, and Notre-Dame make it one of the most visited cities in the world.'
+  }
+];
 
 const reasonOptions = [
   {
@@ -73,6 +98,162 @@ const topicOptions = [
 
 const availableLanguages = [ 'English', 'Spanish', 'French', 'Catalan', 'German' ];
 const otherReason = ref( '' );
+
+const quizSteps = [
+  {
+    key: 'encyclopedia',
+    image: encyclopediaPillarImage,
+    imageAlt: 'Illustration for the encyclopedia pillar',
+    title: 'Wikipedia is an encyclopedia',
+    description:
+      'Wikipedia is not a place for opinions, ads, social networking, random information, or personal content. It’s also not a dictionary, news site, or instruction manual.',
+    example: '"Michael Jordan is my favorite basketball player"',
+    question: 'Does the previous sentence belong in a Wikipedia article?',
+    errorMessage:
+      'Not quite. This is an opinion — not everyone agrees, and it can’t be verified with a source.',
+    correctKey: 'b',
+    options: [
+      {
+        key: 'a',
+        label: 'A',
+        text: 'Yes — it\'s a well-known fact about Michael Jordan.'
+      },
+      {
+        key: 'b',
+        label: 'B',
+        text: 'No — it\'s an opinion. Wikipedia needs verifiable facts, not judgments.'
+      },
+      {
+        key: 'c',
+        label: 'C',
+        text: 'Yes, if enough people agree with it.'
+      }
+    ]
+  },
+  {
+    key: 'neutral',
+    image: neutralPillarImage,
+    imageAlt: 'Illustration for the neutral point of view pillar',
+    title: 'Wikipedia is written from a neutral point of view',
+    description:
+      'Wikipedia articles should be neutral and based on reliable sources. They explain different points of view fairly, without promoting any. Personal opinions or experiences are not included.',
+    example: '"Rosalía is the greatest singer of all time."',
+    question: 'Does the previous sentence belong in a Wikipedia article?',
+    errorMessage:
+      'Not quite. This is an opinion and it can’t be verified with a source.',
+    correctKey: 'a',
+    options: [
+      {
+        key: 'a',
+        label: 'A',
+        text: 'No — it\'s an opinion. Wikipedia needs verifiable facts, not judgments.'
+      },
+      {
+        key: 'b',
+        label: 'B',
+        text: 'Yes — it\'s a well-known fact about Rosalía.'
+      },
+      {
+        key: 'c',
+        label: 'C',
+        text: 'Yes, if enough people agree with it.'
+      }
+    ]
+  },
+  {
+    key: 'free-content',
+    image: freeContentPillarImage,
+    imageAlt: 'Illustration for the free content pillar',
+    title: 'Wikipedia is free content that anyone can use, edit, and distribute',
+    description:
+      'Anyone can use, edit, and redistribute Wikipedia’s content. The content you add must be freely licensed or in the public domain. That means you can’t copy text from other sources.',
+    example:
+      'You want to improve an article about a painting. You find a perfect paragraph in an art history book and copy it word for word into the article.',
+    question: 'Is this the right approach?',
+    errorMessage:
+      'Copyright still applies. You need to paraphrase and write in your own words.',
+    correctKey: 'b',
+    options: [
+      {
+        key: 'a',
+        label: 'A',
+        text: 'Yes — if it\'s accurate and well-written, it improves the article.'
+      },
+      {
+        key: 'b',
+        label: 'B',
+        text: 'No — copying copyrighted text violates Wikipedia\'s free content policy.'
+      },
+      {
+        key: 'c',
+        label: 'C',
+        text: 'Only if you credit the book in the references.'
+      }
+    ]
+  },
+  {
+    key: 'civility',
+    image: civilityPillarImage,
+    imageAlt: 'Illustration for the civility pillar',
+    title: 'Wikipedia editors come from everywhere.',
+    description:
+      'Wikipedia editors come from everywhere. Disagreements happen — but they should be resolved through discussion, not personal attacks. Assume other editors mean well.',
+    example:
+      'Another editor removes a sentence you added with no explanation in the edit summary.',
+    question: 'What\'s the best response?',
+    errorMessage:
+      'Reverting without discussion or assuming bad faith creates edit wars.',
+    correctKey: 'b',
+    options: [
+      {
+        key: 'a',
+        label: 'A',
+        text: 'Revert their edit immediately — your version was better.'
+      },
+      {
+        key: 'b',
+        label: 'B',
+        text: 'Leave a message on their talk page asking why they removed it.'
+      },
+      {
+        key: 'c',
+        label: 'C',
+        text: 'Report them to an admin for vandalism.'
+      }
+    ]
+  },
+  {
+    key: 'no-rules',
+    image: noRulesPillarImage,
+    imageAlt: 'Illustration for the no firm rules pillar',
+    title: 'Wikipedia has no firm rules',
+    description:
+      'Wikipedia\'s policies exist to serve the goal of building a free encyclopedia — not the other way around. Use good judgment. If a rule prevents a good outcome, it may not apply.',
+    example:
+      'A new editor adds accurate, well-sourced content but formats it slightly wrong. A veteran editor removes the entire contribution because it doesn\'t follow the style guide.',
+    question: 'Did the veteran editor act in the spirit of Wikipedia?',
+    errorMessage:
+      'Not quite. This is an opinion and it can’t be verified with a source.',
+    correctKey: 'b',
+    options: [
+      {
+        key: 'a',
+        label: 'A',
+        text: 'Yes — rules exist to be followed consistently.'
+      },
+      {
+        key: 'b',
+        label: 'B',
+        text: 'No — good content shouldn\'t be removed over formatting. Fix the format, keep the content.'
+      },
+      {
+        key: 'c',
+        label: 'C',
+        text: 'It depends on how wrong the formatting was.'
+      }
+    ]
+  }
+];
 
 const progressionTasks = ref( [
   {
@@ -128,6 +309,7 @@ const streakCount = ref( 0 );
 const isProgressionExpanded = ref( false );
 
 const currentSurveyStep = computed( () => surveySteps[ currentSurveyStepIndex.value ] );
+const currentQuizStep = computed( () => quizSteps[ currentQuizIndex.value ] );
 const completedTaskCount = computed(
   () => progressionTasks.value.filter( ( task ) => task.completed ).length
 );
@@ -135,8 +317,23 @@ const currentTaskIndex = computed(
   () => progressionTasks.value.findIndex( ( task ) => !task.completed )
 );
 const currentTaskNumber = computed( () => currentTaskIndex.value + 1 );
+const activeProgressTask = computed(
+  () => ( currentTaskIndex.value >= 0 ? progressionTasks.value[ currentTaskIndex.value ] : null )
+);
 const shouldCollapseProgression = computed( () => completedTaskCount.value < 2 );
-const visibleTasks = computed( () => progressionTasks.value );
+const visibleTasks = computed( () => {
+  if ( shouldCollapseProgression.value && !isProgressionExpanded.value ) {
+    return progressionTasks.value.slice( 0, 2 );
+  }
+
+  return progressionTasks.value;
+} );
+const currentQuizAnswer = computed(
+  () => selectedQuizAnswers.value[ currentQuizStep.value.key ] || ''
+);
+const currentQuizAnswerIsCorrect = computed(
+  () => currentQuizAnswer.value === currentQuizStep.value.correctKey
+);
 
 const surveyProgressValue = computed( () => {
   switch ( currentSurveyStep.value ) {
@@ -176,9 +373,28 @@ watch(
     if ( nextView === 'home' ) {
       isProgressionExpanded.value = !shouldCollapseProgression.value;
     }
+
+    if ( nextView !== 'article' ) {
+      showArticlePathEntry.value = false;
+      if ( articleScrollTimeout ) {
+        clearTimeout( articleScrollTimeout );
+        articleScrollTimeout = null;
+      }
+    }
   },
   { immediate: true }
 );
+
+onMounted( () => {
+  window.addEventListener( 'scroll', handleArticleScroll, { passive: true } );
+} );
+
+onBeforeUnmount( () => {
+  window.removeEventListener( 'scroll', handleArticleScroll );
+  if ( articleScrollTimeout ) {
+    clearTimeout( articleScrollTimeout );
+  }
+} );
 
 function goToNextSurveyStep() {
   if ( currentSurveyStepIndex.value < surveySteps.length - 1 ) {
@@ -243,7 +459,19 @@ function completeCurrentTask() {
     return;
   }
 
+  if ( task.action === 'quiz' ) {
+    currentQuizIndex.value = 0;
+    currentView.value = 'quiz';
+    return;
+  }
+
   task.completed = true;
+  recentlyCompletedTaskKey.value = task.key;
+  setTimeout( () => {
+    if ( recentlyCompletedTaskKey.value === task.key ) {
+      recentlyCompletedTaskKey.value = '';
+    }
+  }, 550 );
 
   if ( task.action === 'edit' ) {
     editsCount.value += 1;
@@ -270,10 +498,86 @@ function toggleProgressionExpanded() {
 function goToHomepage() {
   currentView.value = 'home';
 }
+
+function goToArticle() {
+  currentView.value = 'article';
+}
+
+function handleArticleScroll() {
+  if ( currentView.value !== 'article' || !activeProgressTask.value ) {
+    return;
+  }
+
+  showArticlePathEntry.value = false;
+
+  if ( articleScrollTimeout ) {
+    clearTimeout( articleScrollTimeout );
+  }
+
+  articleScrollTimeout = setTimeout( () => {
+    if ( currentView.value === 'article' && activeProgressTask.value ) {
+      showArticlePathEntry.value = true;
+    }
+  }, 2000 );
+}
+
+function selectQuizAnswer( optionKey ) {
+  selectedQuizAnswers.value = {
+    ...selectedQuizAnswers.value,
+    [ currentQuizStep.value.key ]: optionKey
+  };
+}
+
+function goToPreviousQuizStep() {
+  if ( currentQuizIndex.value > 0 ) {
+    currentQuizIndex.value -= 1;
+    return;
+  }
+
+  currentView.value = 'home';
+}
+
+function goToNextQuizStep() {
+  if ( !currentQuizAnswer.value ) {
+    return;
+  }
+
+  if ( currentQuizIndex.value < quizSteps.length - 1 ) {
+    currentQuizIndex.value += 1;
+    return;
+  }
+
+  progressionTasks.value = progressionTasks.value.map( ( task ) =>
+    task.key === 'five-pillars' ? { ...task, completed: true } : task
+  );
+  recentlyCompletedTaskKey.value = 'five-pillars';
+  setTimeout( () => {
+    if ( recentlyCompletedTaskKey.value === 'five-pillars' ) {
+      recentlyCompletedTaskKey.value = '';
+    }
+  }, 550 );
+  currentView.value = 'home';
+}
+
+function getQuizOptionState( optionKey ) {
+  if ( !currentQuizAnswer.value ) {
+    return '';
+  }
+
+  if ( optionKey === currentQuizStep.value.correctKey ) {
+    return 'success';
+  }
+
+  if ( optionKey === currentQuizAnswer.value && !currentQuizAnswerIsCorrect.value ) {
+    return 'error';
+  }
+
+  return '';
+}
 </script>
 
 <template>
-  <ChromeWrapper @go-home="goToHomepage">
+  <ChromeWrapper @go-home="goToHomepage" @go-article="goToArticle">
     <section v-if="currentView === 'survey'" class="survey-page">
       <div v-if="currentSurveyStep === 'welcome'" class="survey-page__panel survey-page__panel--welcome">
         <div class="survey-page__copy">
@@ -471,6 +775,233 @@ function goToHomepage() {
       </div>
     </section>
 
+    <section v-else-if="currentView === 'quiz'" class="quiz-page">
+      <header class="quiz-page__header">
+        <CdxButton
+          class="quiz-page__back"
+          weight="quiet"
+          aria-label="Go back"
+          @click="goToPreviousQuizStep"
+        >
+          <CdxIcon :icon="cdxIconArrowPrevious" />
+        </CdxButton>
+        <h1 class="quiz-page__header-title">
+          Five pillars quiz
+        </h1>
+      </header>
+
+      <div class="quiz-page__progress-block">
+        <CdxProgressBar
+          aria-label="Quiz progress"
+          :value="currentQuizIndex + 1"
+          :max="quizSteps.length"
+        />
+        <p class="quiz-page__progress-text">
+          <strong>{{ currentQuizIndex + 1 }}</strong> of {{ quizSteps.length }}
+        </p>
+      </div>
+
+      <article class="quiz-page__panel">
+        <img
+          class="quiz-page__thumbnail"
+          :src="currentQuizStep.image"
+          :alt="currentQuizStep.imageAlt"
+        >
+
+        <div class="quiz-page__copy">
+          <h2 class="quiz-page__title">
+            {{ currentQuizStep.title }}
+          </h2>
+          <p class="quiz-page__description">
+            {{ currentQuizStep.description }}
+          </p>
+        </div>
+
+        <section class="quiz-example">
+          <p class="quiz-example__label">
+            Example:
+          </p>
+          <p class="quiz-example__text">
+            {{ currentQuizStep.example }}
+          </p>
+        </section>
+
+        <section class="quiz-question">
+          <h3 class="quiz-question__title">
+            {{ currentQuizStep.question }}
+          </h3>
+
+          <div class="quiz-question__options">
+            <article
+              v-for="option in currentQuizStep.options"
+              :key="option.key"
+              class="quiz-option"
+              :class="{
+                'quiz-option--success': getQuizOptionState( option.key ) === 'success',
+                'quiz-option--error': getQuizOptionState( option.key ) === 'error'
+              }"
+            >
+              <button
+                class="quiz-option__button"
+                type="button"
+                @click="selectQuizAnswer( option.key )"
+              >
+                <span class="quiz-option__key">{{ option.label }}</span>
+                <span class="quiz-option__text">{{ option.text }}</span>
+              </button>
+
+              <p
+                v-if="getQuizOptionState( option.key ) === 'error'"
+                class="quiz-option__message quiz-option__message--error"
+              >
+                {{ currentQuizStep.errorMessage }}
+              </p>
+            </article>
+          </div>
+        </section>
+      </article>
+
+      <div class="quiz-page__footer-nav">
+        <CdxButton
+          v-if="currentQuizIndex > 0"
+          class="quiz-page__nav-link"
+          weight="quiet"
+          @click="goToPreviousQuizStep"
+        >
+          <template #icon>
+            <CdxIcon :icon="cdxIconArrowPrevious" />
+          </template>
+          Previous
+        </CdxButton>
+
+        <CdxButton
+          v-if="currentQuizAnswer"
+          class="quiz-page__nav-link quiz-page__nav-link--next"
+          weight="quiet"
+          action="progressive"
+          @click="goToNextQuizStep"
+        >
+          {{ currentQuizIndex === quizSteps.length - 1 ? 'Complete quiz' : 'Next' }}
+          <template #icon>
+            <CdxIcon :icon="cdxIconArrowNext" />
+          </template>
+        </CdxButton>
+      </div>
+    </section>
+
+    <section v-else-if="currentView === 'article'" class="article-page">
+      <header class="article-page__header">
+        <div class="article-page__title-row">
+          <div>
+            <h1 class="article-page__title">
+              {{ articleTitle }}
+            </h1>
+            <p class="article-page__subtitle">
+              Capital and most populous city of France
+            </p>
+          </div>
+          <a class="article-page__language-link" href="#">84 languages</a>
+        </div>
+
+        <nav class="article-page__tabs" aria-label="Article actions">
+          <a class="article-page__tab article-page__tab--active" href="#">Article</a>
+          <a class="article-page__tab" href="#">Talk</a>
+          <a class="article-page__tab" href="#">Read</a>
+          <a class="article-page__tab" href="#">Edit</a>
+          <a class="article-page__tab" href="#">View history</a>
+        </nav>
+      </header>
+
+      <div class="article-page__layout">
+        <aside class="article-page__infobox">
+          <figure class="article-page__media">
+            <img
+              class="article-page__image"
+              src="https://upload.wikimedia.org/wikipedia/commons/e/e6/Paris_Night.jpg"
+              alt="Paris skyline"
+            >
+            <figcaption class="article-page__caption">
+              Paris skyline seen from the Seine
+            </figcaption>
+          </figure>
+
+          <dl class="article-page__facts">
+            <div class="article-page__fact">
+              <dt>Country</dt>
+              <dd>France</dd>
+            </div>
+            <div class="article-page__fact">
+              <dt>Region</dt>
+              <dd>Île-de-France</dd>
+            </div>
+            <div class="article-page__fact">
+              <dt>Population</dt>
+              <dd>2,102,650</dd>
+            </div>
+            <div class="article-page__fact">
+              <dt>Demonym</dt>
+              <dd>Parisian</dd>
+            </div>
+          </dl>
+        </aside>
+
+        <article class="article-page__content">
+          <p class="article-page__lead">
+            <strong>Paris</strong> is the capital and most populous city of France. Located on the Seine River,
+            it has long been a major center of politics, commerce, science, and the arts.
+          </p>
+          <p class="article-page__lead">
+            The city is globally recognized for its architecture, museums, and role in European history.
+            It is one of the world’s leading tourist destinations and an important transport hub.
+          </p>
+
+          <nav class="article-page__toc" aria-label="Contents">
+            <h2 class="article-page__section-label">
+              Contents
+            </h2>
+            <ol class="article-page__toc-list">
+              <li v-for="section in articleSections" :key="section.title">
+                <a href="#">{{ section.title }}</a>
+              </li>
+            </ol>
+          </nav>
+
+          <section
+            v-for="section in articleSections"
+            :key="section.title"
+            class="article-page__section"
+          >
+            <h2 class="article-page__section-title">
+              {{ section.title }}
+            </h2>
+            <p class="article-page__paragraph">
+              {{ section.body }}
+            </p>
+          </section>
+        </article>
+      </div>
+
+      <transition name="article-path-entry">
+        <button
+          v-if="showArticlePathEntry && activeProgressTask"
+          class="article-path-entry"
+          type="button"
+          @click="goToHomepage"
+        >
+          <span class="article-path-entry__marker">{{ currentTaskNumber }}</span>
+          <span class="article-path-entry__copy">
+            <span class="article-path-entry__eyebrow">Continue your path</span>
+            <span class="article-path-entry__meta">
+              {{ currentTaskNumber }} of {{ progressionTasks.length }} steps • {{ activeProgressTask.title }}
+            </span>
+          </span>
+          <span class="article-path-entry__chevron" aria-hidden="true">
+            <CdxIcon :icon="cdxIconArrowNext" />
+          </span>
+        </button>
+      </transition>
+    </section>
+
     <section v-else class="homepage">
       <header class="homepage__profile">
         <button class="homepage__avatar" type="button" aria-label="Add profile photo">
@@ -504,7 +1035,8 @@ function goToHomepage() {
             class="progression-item"
             :class="{
               'progression-item--complete': task.completed,
-              'progression-item--active': index === currentTaskIndex
+              'progression-item--active': index === currentTaskIndex,
+              'progression-item--recently-completed': recentlyCompletedTaskKey === task.key
             }"
           >
             <div class="progression-item__rail">
@@ -551,7 +1083,7 @@ function goToHomepage() {
           </article>
         </div>
 
-        <div v-if="shouldCollapseProgression" class="homepage__see-all-wrap">
+        <div v-if="shouldCollapseProgression && progressionTasks.length > 2" class="homepage__see-all-wrap">
           <div class="homepage__see-all-gradient" aria-hidden="true"></div>
           <button
             class="homepage__see-all"
@@ -614,13 +1146,17 @@ function goToHomepage() {
 
 <style scoped>
 .survey-page,
-.homepage {
+.homepage,
+.quiz-page,
+.article-page {
   min-height: 100%;
   background-color: var(--background-color-base);
 }
 
 .survey-page__panel,
-.homepage {
+.homepage,
+.quiz-page,
+.article-page {
   max-width: 30rem;
   padding: var(--spacing-150);
 }
@@ -905,11 +1441,11 @@ function goToHomepage() {
   display: flex;
   flex-direction: column;
   gap: 0;
+  position: relative;
 }
 
 .progression-list--collapsed {
-  max-height: 23.5rem;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .progression-item {
@@ -925,6 +1461,7 @@ function goToHomepage() {
 }
 
 .progression-item__marker {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -937,6 +1474,12 @@ function goToHomepage() {
   font-size: 14px;
   font-weight: var(--font-weight-bold);
   line-height: 1;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
 }
 
 .progression-item__line {
@@ -957,9 +1500,9 @@ function goToHomepage() {
 }
 
 .progression-item--active .progression-item__marker {
-  border: 3px solid var(--background-color-progressive-subtle);
   background-color: var(--background-color-progressive);
   color: var(--color-inverted);
+  box-shadow: 0 0 0 3px var(--background-color-progressive-subtle);
 }
 
 .progression-item__content {
@@ -980,6 +1523,8 @@ function goToHomepage() {
   color: var(--color-icon-success);
   font-size: 14px;
   line-height: 22px;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 .progression-item__button {
@@ -996,14 +1541,12 @@ function goToHomepage() {
 }
 
 .homepage__see-all-wrap {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
+  position: relative;
   display: flex;
   justify-content: center;
   align-items: flex-end;
   height: 104px;
+  margin-top: -88px;
   pointer-events: none;
 }
 
@@ -1088,9 +1631,248 @@ function goToHomepage() {
   line-height: 30px;
 }
 
+.quiz-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.quiz-page__header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color-subtle);
+}
+
+.quiz-page__back {
+  flex-shrink: 0;
+}
+
+.quiz-page__header-title {
+  margin: 0;
+  color: var(--color-emphasized);
+  font-family: var(--font-family-system-sans);
+  font-size: 20px;
+  line-height: 30px;
+  font-weight: var(--font-weight-bold);
+}
+
+.quiz-page__progress-block {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.quiz-page__progress-text {
+  margin: 0;
+  color: var(--color-subtle);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.quiz-page__progress-text strong {
+  color: var(--color-emphasized);
+  font-weight: var(--font-weight-bold);
+}
+
+.quiz-page__progress-block :deep(.cdx-progress-bar) {
+  width: 100%;
+}
+
+.quiz-page__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.quiz-page__thumbnail {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border-color-subtle);
+  border-radius: var(--border-radius-base);
+  object-fit: cover;
+}
+
+.quiz-page__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.quiz-page__title {
+  margin: 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color-subtle);
+  color: var(--color-emphasized);
+  font-family: var(--font-family-heading-main);
+  font-size: 20px;
+  line-height: 30px;
+  font-weight: var(--font-weight-regular);
+}
+
+.quiz-page__description {
+  margin: 0;
+  color: var(--color-emphasized);
+  font-size: 16px;
+  line-height: 32px;
+}
+
+.quiz-example {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: var(--border-base);
+  border-color: var(--border-color-muted);
+  border-radius: var(--border-radius-base);
+  background-color: var(--background-color-neutral-subtle);
+  padding: 12px;
+}
+
+.quiz-example__label {
+  margin: 0;
+  color: var(--color-base);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.quiz-example__text {
+  margin: 0;
+  color: var(--color-emphasized);
+  font-family: var(--font-family-heading-main);
+  font-size: 16px;
+  line-height: 22px;
+}
+
+.quiz-question {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.quiz-question__title {
+  margin: 0;
+  color: var(--color-emphasized);
+  font-size: 18px;
+  line-height: 28px;
+  font-weight: var(--font-weight-bold);
+}
+
+.quiz-question__options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.quiz-option {
+  border: var(--border-base);
+  border-color: var(--border-color-base);
+  border-radius: var(--border-radius-base);
+  background-color: var(--background-color-base);
+}
+
+.quiz-option--success {
+  border-color: var(--border-color-success);
+  background-color: var(--background-color-success-subtle);
+}
+
+.quiz-option--error {
+  border-color: var(--border-color-error);
+  background-color: var(--background-color-error-subtle);
+}
+
+.quiz-option__button {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 12px;
+  text-align: left;
+}
+
+.quiz-option__key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border: 1px solid var(--border-color-base);
+  border-radius: 50%;
+  color: var(--color-subtle);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.quiz-option--success .quiz-option__key {
+  border-color: var(--color-icon-success);
+  background-color: var(--color-icon-success);
+  color: var(--color-inverted);
+}
+
+.quiz-option--error .quiz-option__key {
+  border-color: var(--color-error);
+  background-color: var(--color-error);
+  color: var(--color-inverted);
+}
+
+.quiz-option__text {
+  color: var(--color-emphasized);
+  font-size: 16px;
+  line-height: 22px;
+}
+
+.quiz-option__message {
+  margin: 0;
+  padding: 0 12px 12px 12px;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.quiz-option__message--error {
+  color: var(--color-error);
+}
+
+.quiz-page__footer-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  margin-top: auto;
+  padding-top: 12px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  background:
+    linear-gradient(
+      180deg,
+      rgb(255 255 255 / 0) 0%,
+      rgb(255 255 255 / 0.96) 24%,
+      rgb(255 255 255 / 1) 100%
+    );
+}
+
+.quiz-page__nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-50);
+}
+
+.quiz-page__nav-link--next {
+  margin-inline-start: auto;
+}
+
+.quiz-page__nav-link--next :deep(.cdx-icon) {
+  color: var(--color-progressive);
+}
+
 .progression-item__marker :deep(.cdx-icon) {
   width: 12px;
   height: 12px;
+  color: var(--color-inverted);
 }
 
 .progression-item__title {
@@ -1122,11 +1904,283 @@ function goToHomepage() {
 .module-card-link:deep(.cdx-card) {
   border-color: var(--border-color-interactive);
   border-radius: var(--border-radius-base);
+  background-color: var(--background-color-neutral-subtle);
+}
+
+.module-card-link:deep(.cdx-card__text__title),
+.module-card-link:deep(.cdx-card__text__description) {
+  background-color: transparent;
+}
+
+.progression-item__status :deep(.cdx-icon) {
+  color: var(--color-success);
+}
+
+.progression-item--recently-completed .progression-item__marker {
+  animation: progression-marker-complete 420ms ease;
+}
+
+@keyframes progression-marker-complete {
+  0% {
+    transform: scale(1);
+  }
+
+  40% {
+    transform: scale(1.14);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+.article-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.article-page__header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.article-page__title-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.article-page__title {
+  margin: 0;
+  color: var(--color-emphasized);
+  font-family: var(--font-family-heading-main);
+  font-size: 32px;
+  line-height: 1.2;
+  font-weight: var(--font-weight-regular);
+}
+
+.article-page__subtitle {
+  margin: 0;
+  color: var(--color-subtle);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.article-page__language-link,
+.article-page__toc-list a {
+  color: var(--color-progressive);
+  text-decoration: none;
+}
+
+.article-page__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color-subtle);
+}
+
+.article-page__tab {
+  color: var(--color-emphasized);
+  font-size: 14px;
+  line-height: 22px;
+  text-decoration: none;
+}
+
+.article-page__tab--active {
+  font-weight: var(--font-weight-bold);
+  text-decoration: underline;
+  text-underline-offset: 0.3rem;
+}
+
+.article-page__layout {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.article-page__infobox {
+  order: 2;
+  border: 1px solid var(--border-color-subtle);
+  background-color: var(--background-color-neutral-subtle);
+}
+
+.article-page__media {
+  margin: 0;
+}
+
+.article-page__image {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.article-page__caption {
+  padding: 8px 12px;
+  color: var(--color-subtle);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.article-page__facts {
+  margin: 0;
+}
+
+.article-page__fact {
+  display: grid;
+  grid-template-columns: 6rem 1fr;
+  gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border-color-subtle);
+}
+
+.article-page__fact dt {
+  color: var(--color-subtle);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.article-page__fact dd {
+  margin: 0;
+  color: var(--color-emphasized);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.article-page__content {
+  order: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.article-page__lead,
+.article-page__paragraph {
+  margin: 0;
+  color: var(--color-emphasized);
+  font-size: 16px;
+  line-height: 28px;
+}
+
+.article-page__toc {
+  border: 1px solid var(--border-color-subtle);
+  background-color: var(--background-color-neutral-subtle);
+  padding: 12px;
+}
+
+.article-page__section-label {
+  margin: 0 0 8px 0;
+  color: var(--color-emphasized);
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: var(--font-weight-bold);
+}
+
+.article-page__toc-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.article-page__toc-list li + li {
+  margin-top: 4px;
+}
+
+.article-page__section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.article-page__section-title {
+  margin: 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color-subtle);
+  color: var(--color-emphasized);
+  font-family: var(--font-family-heading-main);
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: var(--font-weight-regular);
+}
+
+.article-path-entry {
+  position: fixed;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  left: 16px;
+  z-index: 20;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  border: 1px solid var(--border-color-muted);
+  border-radius: var(--border-radius-base);
+  background-color: var(--background-color-neutral-subtle);
+  box-shadow: 0 6px 16px rgb(0 0 0 / 0.12);
+  padding: 12px;
+  text-align: left;
+}
+
+.article-path-entry__marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  margin-top: -1px;
+  border-radius: 50%;
+  background-color: var(--background-color-progressive);
+  color: var(--color-inverted);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.article-path-entry__copy {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.article-path-entry__eyebrow {
+  color: var(--color-emphasized);
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: var(--font-weight-bold);
+}
+
+.article-path-entry__meta {
+  color: var(--color-subtle);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.article-path-entry__chevron {
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-subtle);
+}
+
+.article-path-entry-enter-active,
+.article-path-entry-leave-active {
+  transition:
+    transform 220ms ease,
+    opacity 220ms ease;
+}
+
+.article-path-entry-enter-from,
+.article-path-entry-leave-to {
+  opacity: 0;
+  transform: translateY(18px);
 }
 
 @media (min-width: 640px) {
   .survey-page__panel,
-  .homepage {
+  .homepage,
+  .quiz-page,
+  .article-page {
     max-width: 33rem;
     padding: var(--spacing-150) var(--spacing-100);
   }
@@ -1137,5 +2191,38 @@ function goToHomepage() {
     line-height: 2.25rem;
   }
 
+  .article-page {
+    max-width: 100%;
+  }
+
+  .article-page__title-row {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+
+  .article-page__layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 19rem;
+    gap: 24px;
+    align-items: start;
+  }
+
+  .article-page__content {
+    order: 1;
+  }
+
+  .article-page__infobox {
+    order: 2;
+    position: sticky;
+    top: 16px;
+  }
+
+  .article-path-entry {
+    right: 24px;
+    bottom: 24px;
+    left: auto;
+    width: min(420px, calc(100vw - 48px));
+  }
 }
 </style>
