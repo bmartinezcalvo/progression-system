@@ -32,6 +32,7 @@ const suggestedEditsViewport = ref( null );
 const videoCompleted = ref( false );
 const hasContributorPath = ref( false );
 const showContributorDialog = ref( false );
+const showWelcomeSuccessSheet = ref( false );
 let articleScrollTimeout = null;
 
 const selectedReason = ref( '' );
@@ -47,7 +48,7 @@ const accountConfirmPassword = ref( 'Wikipedia1234' );
 const userName = 'CaptainBird';
 const userInitials = 'Ca';
 const welcomeSurveyHeroImage =
-  'https://commons.wikimedia.org/wiki/Special:Redirect/file/Wikipedia%2020%20cover%20puzzle%20globe%20blue.png';
+  'https://commons.wikimedia.org/wiki/Special:Redirect/file/WYiR_Puzzle_4.gif';
 const surveySuccessHeroImage =
   'https://commons.wikimedia.org/wiki/Special:Redirect/file/Wikipedia%2020%20cover%20puzzle%20globe%20blue.png';
 const wikiMinuteVideoSource =
@@ -1148,10 +1149,12 @@ function skipSurvey() {
 function completeSurvey() {
   markTaskCompleted( 'welcome-survey' );
   resumeSurveyStepIndex.value = 1;
-  currentView.value = 'survey-success';
+  currentView.value = 'home';
+  showWelcomeSuccessSheet.value = true;
 }
 
 function reviseSurveyResponses() {
+  showWelcomeSuccessSheet.value = false;
   currentSurveyStepIndex.value = 1;
   currentView.value = 'survey';
 }
@@ -1207,6 +1210,7 @@ function toggleProgressionExpanded() {
 }
 
 function goToHomepage() {
+  showWelcomeSuccessSheet.value = false;
   currentView.value = 'home';
 }
 
@@ -1460,11 +1464,13 @@ function maybePromoteToContributorPath() {
       }"
     >
       <div v-if="currentSurveyStep === 'welcome'" class="survey-page__panel survey-page__panel--welcome">
-        <img
-          class="survey-page__hero-image"
-          :src="welcomeSurveyHeroImage"
-          alt="Illustration of the Wikipedia globe"
-        >
+        <div class="survey-page__hero-banner">
+          <img
+            class="survey-page__hero-image survey-page__hero-image--welcome"
+            :src="welcomeSurveyHeroImage"
+            alt="Animated Wikipedia welcome illustration"
+          >
+        </div>
 
         <div class="survey-page__copy">
           <h1 class="survey-page__title">
@@ -1692,45 +1698,6 @@ function maybePromoteToContributorPath() {
               <CdxIcon :icon="cdxIconArrowNext" />
             </CdxButton>
           </div>
-        </div>
-      </div>
-    </section>
-
-    <section v-else-if="currentView === 'survey-success'" class="survey-page survey-page--welcome">
-      <div class="survey-page__panel survey-page__panel--welcome survey-page__panel--success">
-        <img
-          class="survey-page__hero-image survey-page__hero-image--success"
-          :src="surveySuccessHeroImage"
-          alt="Illustration of the Wikipedia globe"
-        >
-
-        <div class="survey-page__copy">
-          <h1 class="survey-page__title survey-page__title--success">
-            You're all set, {{ userName }}
-          </h1>
-          <p class="survey-page__body survey-page__body--welcome">
-            Your homepage is ready. We've picked your first edit based on your interests.
-          </p>
-        </div>
-
-        <div class="survey-page__welcome-actions survey-page__welcome-actions--success">
-          <CdxButton
-            class="survey-page__full-button"
-            action="progressive"
-            weight="primary"
-            size="large"
-            @click="goToHomepage"
-          >
-            Go to homepage
-          </CdxButton>
-          <CdxButton
-            class="survey-page__full-button"
-            weight="quiet"
-            size="large"
-            @click="reviseSurveyResponses"
-          >
-            Revise responses
-          </CdxButton>
         </div>
       </div>
     </section>
@@ -2236,6 +2203,59 @@ function maybePromoteToContributorPath() {
 
     <transition name="contributor-sheet-fade">
       <div
+        v-if="showWelcomeSuccessSheet"
+        class="contributor-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="welcome-success-sheet-title"
+      >
+        <button
+          class="contributor-sheet__overlay contributor-sheet__overlay--white"
+          type="button"
+          aria-label="Close welcome success message"
+          @click="showWelcomeSuccessSheet = false"
+        ></button>
+
+        <div class="contributor-sheet__panel">
+          <div class="contributor-sheet__content">
+            <img
+              class="contributor-sheet__image"
+              :src="contributorDialogImage"
+              alt="Wikipedia contributor achievement illustration"
+            >
+            <h2 id="welcome-success-sheet-title" class="contributor-sheet__title">
+              You're all set, {{ userName }}
+            </h2>
+            <p class="contributor-sheet__body">
+              Your homepage is ready. We've picked your first edit based on your interests.
+            </p>
+          </div>
+
+          <div class="contributor-sheet__actions contributor-sheet__actions--stacked">
+            <CdxButton
+              class="contributor-sheet__button"
+              action="progressive"
+              weight="primary"
+              size="medium"
+              @click="goToHomepage"
+            >
+              Go to homepage
+            </CdxButton>
+            <CdxButton
+              class="contributor-sheet__button contributor-sheet__button--quiet"
+              weight="quiet"
+              size="medium"
+              @click="reviseSurveyResponses"
+            >
+              Revise responses
+            </CdxButton>
+          </div>
+        </div>
+      </div>
+    </transition>
+
+    <transition name="contributor-sheet-fade">
+      <div
         v-if="showContributorDialog"
         class="contributor-sheet"
         role="dialog"
@@ -2383,6 +2403,17 @@ function maybePromoteToContributorPath() {
   padding-bottom: 180px;
 }
 
+.survey-page__hero-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(100% + 32px);
+  aspect-ratio: 16 / 9;
+  margin-inline: -16px;
+  background-color: #00a0ff;
+  overflow: hidden;
+}
+
 .survey-page__hero-image {
   display: block;
   width: calc(100% + 32px);
@@ -2394,6 +2425,14 @@ function maybePromoteToContributorPath() {
   border-radius: 0;
   background-color: transparent;
   object-fit: cover;
+}
+
+.survey-page__hero-image--welcome {
+  width: 180px;
+  height: 180px;
+  min-height: 0;
+  margin-inline: 0;
+  object-fit: contain;
 }
 
 .survey-page__hero-image--success {
@@ -3144,6 +3183,10 @@ function maybePromoteToContributorPath() {
   background-color: var(--background-color-backdrop-light);
 }
 
+.contributor-sheet__overlay--white {
+  background-color: rgb(255 255 255 / 82%);
+}
+
 .contributor-sheet__panel {
   position: relative;
   z-index: 1;
@@ -3192,10 +3235,20 @@ function maybePromoteToContributorPath() {
   padding: 16px 16px 16px;
 }
 
+.contributor-sheet__actions--stacked {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .contributor-sheet__button,
 .contributor-sheet__button:deep(.cdx-button) {
   width: 100%;
   justify-content: center;
+}
+
+.contributor-sheet__button--quiet:deep(.cdx-button) {
+  border-color: transparent;
 }
 
 .quiz-page {
