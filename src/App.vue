@@ -20,10 +20,9 @@ import freeContentPillarImage from './assets/five-pillars/free-content.svg';
 import civilityPillarImage from './assets/five-pillars/civility.svg';
 import noRulesPillarImage from './assets/five-pillars/no-rules.svg';
 
-const surveySteps = [ 'welcome', 'reason', 'topics', 'languages', 'email' ];
 const currentSurveyStepIndex = ref( 0 );
 const currentView = ref( 'signup' );
-const resumeSurveyStepIndex = ref( 1 );
+const resumeSurveyStepKey = ref( 'intent' );
 const currentQuizIndex = ref( 0 );
 const currentSuggestedEditIndex = ref( 0 );
 const recentlyCompletedTaskKey = ref( '' );
@@ -37,6 +36,7 @@ const showContributorBadgeGlow = ref( false );
 let articleScrollTimeout = null;
 
 const selectedReason = ref( '' );
+const selectedIntent = ref( '' );
 const selectedTopics = ref( [] );
 const selectedLanguages = ref( [ 'English' ] );
 const isInterestedInTranslation = ref( false );
@@ -73,6 +73,24 @@ const articleSections = [
   {
     title: 'Culture',
     body: 'Paris is known for its museums, architecture, fashion, literature, and cuisine. Landmarks such as the Eiffel Tower, the Louvre, and Notre-Dame make it one of the most visited cities in the world.'
+  }
+];
+
+const intentOptions = [
+  {
+    key: 'read',
+    title: 'Read and explore',
+    description: ''
+  },
+  {
+    key: 'edit',
+    title: 'Edit and contribute',
+    description: ''
+  },
+  {
+    key: 'both',
+    title: 'A bit of both',
+    description: ''
   }
 ];
 
@@ -949,7 +967,18 @@ const suggestedEdits = ref( [
   } )
 ] );
 
-const currentSurveyStep = computed( () => surveySteps[ currentSurveyStepIndex.value ] );
+const surveySteps = computed( () => {
+  const flow = [ 'welcome', 'intent' ];
+
+  if ( selectedIntent.value === 'edit' || selectedIntent.value === 'both' || !selectedIntent.value ) {
+    flow.push( 'reason' );
+  }
+
+  flow.push( 'topics', 'languages', 'email' );
+  return flow;
+} );
+const currentSurveyStep = computed( () => surveySteps.value[ currentSurveyStepIndex.value ] );
+const totalSurveyQuestionCount = computed( () => surveySteps.value.length - 1 );
 const currentQuizStep = computed( () => quizSteps[ currentQuizIndex.value ] );
 const completedTaskCount = computed(
   () => progressionTasks.value.filter( ( task ) => task.completed ).length
@@ -1024,20 +1053,9 @@ const currentSuggestedEdit = computed(
 const currentSuggestedEditSequenceNumber = computed(
   () => currentSuggestedEdit.value?.sequenceNumber || 1
 );
-const currentSurveyQuestionNumber = computed( () => {
-  switch ( currentSurveyStep.value ) {
-    case 'reason':
-      return 1;
-    case 'topics':
-      return 2;
-    case 'languages':
-      return 3;
-    case 'email':
-      return 4;
-    default:
-      return 0;
-  }
-} );
+const currentSurveyQuestionNumber = computed( () =>
+  currentSurveyStepIndex.value > 0 ? currentSurveyStepIndex.value : 0
+);
 const shouldShowChromeFooter = computed(
   () => ![ 'signup', 'survey', 'survey-success', 'quiz', 'suggested-edits' ].includes( currentView.value )
 );
@@ -1049,24 +1067,17 @@ const chromeHeaderMode = computed(
 );
 
 const surveyProgressValue = computed( () => {
-  switch ( currentSurveyStep.value ) {
-    case 'welcome':
-      return 10;
-    case 'reason':
-      return 25;
-    case 'topics':
-      return 50;
-    case 'languages':
-      return 80;
-    case 'email':
-      return 100;
-    default:
-      return 0;
+  if ( currentSurveyStep.value === 'welcome' ) {
+    return 0;
   }
+
+  return Math.round( ( currentSurveyQuestionNumber.value / totalSurveyQuestionCount.value ) * 100 );
 } );
 
 const canAdvanceSurvey = computed( () => {
   switch ( currentSurveyStep.value ) {
+    case 'intent':
+      return Boolean( selectedIntent.value );
     case 'reason':
       return Boolean( selectedReason.value );
     case 'topics':
@@ -1110,9 +1121,9 @@ onBeforeUnmount( () => {
 } );
 
 function goToNextSurveyStep() {
-  if ( currentSurveyStepIndex.value < surveySteps.length - 1 ) {
+  if ( currentSurveyStepIndex.value < surveySteps.value.length - 1 ) {
     currentSurveyStepIndex.value += 1;
-    resumeSurveyStepIndex.value = currentSurveyStepIndex.value;
+    resumeSurveyStepKey.value = surveySteps.value[ currentSurveyStepIndex.value ];
   }
 }
 
@@ -1124,7 +1135,7 @@ function goToWelcomeSurvey() {
 function goToPreviousSurveyStep() {
   if ( currentSurveyStepIndex.value > 1 ) {
     currentSurveyStepIndex.value -= 1;
-    resumeSurveyStepIndex.value = currentSurveyStepIndex.value;
+    resumeSurveyStepKey.value = surveySteps.value[ currentSurveyStepIndex.value ];
   }
 }
 
@@ -1170,13 +1181,15 @@ function addLanguage() {
 }
 
 function skipSurvey() {
-  resumeSurveyStepIndex.value = Math.max( currentSurveyStepIndex.value, 1 );
+  if ( currentSurveyStep.value !== 'welcome' ) {
+    resumeSurveyStepKey.value = currentSurveyStep.value;
+  }
   currentView.value = 'home';
 }
 
 function completeSurvey() {
   markTaskCompleted( 'welcome-survey' );
-  resumeSurveyStepIndex.value = 1;
+  resumeSurveyStepKey.value = 'intent';
   currentView.value = 'home';
   showWelcomeSuccessSheet.value = true;
 }
@@ -1197,7 +1210,7 @@ function completeCurrentTask() {
   const task = progressionTasks.value[ index ];
 
   if ( task.action === 'survey' ) {
-    currentSurveyStepIndex.value = resumeSurveyStepIndex.value;
+    currentSurveyStepIndex.value = Math.max( 1, surveySteps.value.findIndex( ( step ) => step === resumeSurveyStepKey.value ) );
     currentView.value = 'survey';
     return;
   }
@@ -1551,7 +1564,7 @@ function dismissContributorSheet() {
             Welcome, {{ userName }}
           </h1>
           <p class="survey-page__body survey-page__body--welcome">
-            Wikipedia is built by people like you. Respond four quick questions to customize your
+            Wikipedia is built by people like you. Respond some quick questions to customize your
             experience.
           </p>
         </div>
@@ -1594,12 +1607,43 @@ function dismissContributorSheet() {
               />
             </div>
             <p class="survey-page__progress-text">
-              <strong>{{ currentSurveyQuestionNumber }}</strong> of 4
+              <strong>{{ currentSurveyQuestionNumber }}</strong> of {{ totalSurveyQuestionCount }}
             </p>
           </div>
         </div>
 
-        <template v-if="currentSurveyStep === 'reason'">
+        <template v-if="currentSurveyStep === 'intent'">
+          <div class="survey-page__copy survey-page__copy--step">
+            <h1 class="survey-page__title survey-page__title--question">
+              What would you like to do on Wikipedia?
+            </h1>
+            <p class="survey-page__body">
+              Choose what you want help with. We’ll set up your dashboard to match.
+            </p>
+          </div>
+
+          <div class="survey-page__options">
+            <button
+              v-for="option in intentOptions"
+              :key="option.key"
+              class="survey-card"
+              :class="{ 'survey-card--selected': selectedIntent === option.key }"
+              type="button"
+              @click="selectedIntent = option.key"
+            >
+              <span class="survey-card__marker" aria-hidden="true">
+                <CdxIcon v-if="selectedIntent === option.key" :icon="cdxIconCheck" />
+                <span v-else>{{ intentOptions.findIndex( ( item ) => item.key === option.key ) + 1 }}</span>
+              </span>
+              <span class="survey-card__content">
+                <span class="survey-card__title">{{ option.title }}</span>
+                <span v-if="option.description" class="survey-card__description">{{ option.description }}</span>
+              </span>
+            </button>
+          </div>
+        </template>
+
+        <template v-else-if="currentSurveyStep === 'reason'">
           <div class="survey-page__copy survey-page__copy--step">
             <h1 class="survey-page__title survey-page__title--question">
               Have you edited Wikipedia before?
@@ -1752,7 +1796,7 @@ function dismissContributorSheet() {
         <div class="survey-page__footer-nav">
           <div class="survey-page__footer-nav-inner">
             <CdxButton
-              v-if="currentSurveyStep !== 'reason'"
+              v-if="currentSurveyStep !== 'intent'"
               class="survey-page__nav-link"
               weight="quiet"
               @click="goToPreviousSurveyStep"
