@@ -17,6 +17,14 @@ const props = defineProps( {
   showFooter: {
     type: Boolean,
     default: true
+  },
+  showSiteHeader: {
+    type: Boolean,
+    default: true
+  },
+  headerMode: {
+    type: String,
+    default: 'default'
   }
 } );
 
@@ -55,7 +63,7 @@ const mobileLinks = [
 
 <template>
   <div class="chrome-shell">
-    <header class="chrome-header chrome-header--desktop">
+    <header v-if="props.showSiteHeader" class="chrome-header chrome-header--desktop">
       <nav class="chrome-header__nav chrome-header__nav--desktop" aria-label="Site">
         <span class="chrome-header__menu-icon" aria-hidden="true">
           <CdxIcon :icon="cdxIconMenu" />
@@ -104,6 +112,7 @@ const mobileLinks = [
           >
             <CdxIcon :icon="cdxIconSearch" />
           </CdxButton>
+          <template v-if="props.headerMode !== 'account-creation'">
           <a class="chrome-header__username-link" href="https://meta.wikimedia.org/wiki/Main_Page">
             Username
           </a>
@@ -120,19 +129,20 @@ const mobileLinks = [
           <CdxButton class="chrome-header__watchlist-button" weight="quiet" aria-label="Watchlist">
             <CdxIcon :icon="cdxIconWatchlist" />
           </CdxButton>
-          <CdxButton
-            class="chrome-header__user-button"
-            weight="quiet"
+          <button
+            class="chrome-header__user-avatar"
+            type="button"
             aria-label="Homepage"
             @click="emit( 'go-home' )"
           >
-            <span class="chrome-header__user-avatar">Ca</span>
-          </CdxButton>
+            Ca
+          </button>
+          </template>
         </div>
       </nav>
     </header>
 
-    <header class="chrome-header chrome-header--mobile">
+    <header v-if="props.showSiteHeader" class="chrome-header chrome-header--mobile">
       <nav class="chrome-header__nav chrome-header__nav--mobile" aria-label="Site">
         <CdxButton weight="quiet" size="large" aria-label="Main menu">
           <CdxIcon :icon="cdxIconMenu" />
@@ -150,19 +160,20 @@ const mobileLinks = [
           <CdxButton weight="quiet" size="large" aria-label="Search" @click="emit( 'go-article' )">
             <CdxIcon :icon="cdxIconSearch" />
           </CdxButton>
+          <template v-if="props.headerMode !== 'account-creation'">
           <CdxButton class="chrome-header__notify-button" weight="quiet" size="large" aria-label="Notifications">
             <CdxIcon :icon="cdxIconBell" />
             <span class="chrome-header__notify-badge" aria-hidden="true">1</span>
           </CdxButton>
-          <CdxButton
-            class="chrome-header__user-button"
-            weight="quiet"
-            size="large"
+          <button
+            class="chrome-header__user-avatar"
+            type="button"
             aria-label="Homepage"
             @click="emit( 'go-home' )"
           >
-            <span class="chrome-header__user-avatar">Ca</span>
-          </CdxButton>
+            Ca
+          </button>
+          </template>
         </div>
       </nav>
     </header>
@@ -293,6 +304,27 @@ const mobileLinks = [
   min-width: 44px;
   height: 44px;
   padding: 0;
+}
+
+.chrome-header__user-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin: 0 6px;
+  padding: 0;
+  border: 1px solid var(--border-color-base);
+  border-radius: 50%;
+  background-color: var(--background-color-progressive-subtle);
+  color: var(--color-emphasized);
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: var(--font-weight-regular);
+  appearance: none;
+  -webkit-appearance: none;
+  background-clip: padding-box;
+  cursor: pointer;
 }
 
 .chrome-header__notify-button {
@@ -558,26 +590,6 @@ const mobileLinks = [
     mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="%23000"><path d="m17.5 4.75-7.5 7.5-7.5-7.5L1 6.25l9 9 9-9z"/></svg>');
     mask-repeat: no-repeat;
     mask-position: center;
-  }
-
-  .chrome-header__user-button:deep(.cdx-button) {
-    gap: 0;
-    overflow: visible;
-  }
-
-  .chrome-header__user-avatar {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    border: 1px solid var(--border-color-subtle);
-    border-radius: 50%;
-    background: #edf3ff;
-    color: var(--color-emphasized);
-    font-size: 16px;
-    line-height: 22px;
-    font-weight: var(--font-weight-regular);
   }
 
   .chrome-footer--desktop {

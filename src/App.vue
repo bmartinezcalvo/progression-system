@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { CdxButton, CdxCard, CdxIcon, CdxProgressBar, CdxTextInput } from '@wikimedia/codex';
+import { CdxButton, CdxCard, CdxField, CdxIcon, CdxProgressBar, CdxTextInput } from '@wikimedia/codex';
 import {
   cdxIconAdd,
   cdxIconArrowNext,
@@ -9,6 +9,7 @@ import {
   cdxIconCollapse,
   cdxIconClose
   ,
+  cdxIconConfigure,
   cdxIconExpand
 } from '@wikimedia/codex-icons';
 
@@ -21,13 +22,13 @@ import noRulesPillarImage from './assets/five-pillars/no-rules.svg';
 
 const surveySteps = [ 'welcome', 'reason', 'topics', 'languages', 'email' ];
 const currentSurveyStepIndex = ref( 0 );
-const currentView = ref( 'survey' );
+const currentView = ref( 'signup' );
 const resumeSurveyStepIndex = ref( 1 );
 const currentQuizIndex = ref( 0 );
 const currentSuggestedEditIndex = ref( 0 );
-const suggestedEditOrdinal = ref( 1 );
 const recentlyCompletedTaskKey = ref( '' );
 const showArticlePathEntry = ref( false );
+const suggestedEditsViewport = ref( null );
 let articleScrollTimeout = null;
 
 const selectedReason = ref( '' );
@@ -35,11 +36,18 @@ const selectedTopics = ref( [] );
 const selectedLanguages = ref( [ 'English', 'Spanish' ] );
 const email = ref( '' );
 const selectedQuizAnswers = ref( {} );
+const accountUsername = ref( 'CaptainBird' );
+const accountPassword = ref( 'Wikipedia1234' );
+const accountConfirmPassword = ref( 'Wikipedia1234' );
 
 const userName = 'CaptainBird';
 const userInitials = 'Ca';
 const wikiMinuteWelcomeImage =
   'https://commons.wikimedia.org/wiki/Special:Redirect/file/A%20Wiki%20Minute%20-%20extract%20021.jpg';
+const isabellaSuggestedEditImage =
+  'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7f/Portrait_of_Isabella_I_of_Castile%2C_aged_44.jpg/320px-Portrait_of_Isabella_I_of_Castile%2C_aged_44.jpg';
+const parisSuggestedEditImage =
+  'https://upload.wikimedia.org/wikipedia/commons/a/a8/Tour_Eiffel_Wikimedia_Commons.jpg';
 const articleTitle = 'Paris';
 const articleSections = [
   {
@@ -311,55 +319,521 @@ const editsCount = ref( 0 );
 const thanksCount = ref( 0 );
 const streakCount = ref( 0 );
 const isProgressionExpanded = ref( false );
-const suggestedEdits = ref( [
-  {
-    key: 'isabella-duplicate-link',
-    articleTitle: 'Isabella I of Castile',
-    articleDescription: 'Queen of Castile and León',
-    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Isabella_I_of_Castile.jpg/320px-Isabella_I_of_Castile.jpg',
-    articleSnippet:
-      'Isabella and Ferdinand are known for being the first monarchs to be referred to as the queen and king of Spain, respectively. Their actions included completion of the Reconquista, the Alhambra Decree which ordered the mass expulsion of Jews from Spain, initiating the Spanish Inquisition, financing Christopher Columbus\'s 1492 voyage to the New World, and establishing the Spanish Empire.',
-    taskTitle: 'Remove duplicate link',
+const suggestedEditTemplates = {
+  addCitation: {
+    taskTitle: 'Add a citation',
+    taskDescription:
+      'This information has no source. Help readers understand where this information is coming from by adding a citation.',
+    primaryLabel: 'Add citation',
+    secondaryLabel: 'Dismiss',
+    successTitle: 'Added a citation',
+    successMessage: 'Thanks for making the source clearer.'
+  },
+  convertReference: {
+    taskTitle: 'Convert reference',
+    taskDescription:
+      'This reference is missing details. Help readers understand where the information is coming from by converting this into a formatted reference. After converting it, check the accuracy of the details that the tool has added, and remove anything that is wrong or confusing.',
+    primaryLabel: 'Convert',
+    secondaryLabel: 'Dismiss',
+    successTitle: 'Converted the reference',
+    successMessage: 'The source details are easier to verify now.'
+  },
+  specificPage: {
+    taskTitle: 'Link to a more specific page',
+    taskDescription:
+      'This link points to a disambiguation page. Help readers find the right topic by linking to a more specific page.',
+    primaryLabel: 'Update link',
+    secondaryLabel: 'Dismiss',
+    successTitle: 'Updated the link',
+    successMessage: 'Readers will now land on the intended topic.'
+  },
+  duplicateLink: {
+    taskTitle: 'Remove duplicated link',
     taskDescription:
       'This link appears more than once in this section. Help readers navigate more easily by removing repeated links.',
-    question: 'Remove this extra link from the paragraph?',
-    successTitle: 'Removed duplicate link',
-    successMessage: 'Thank you for improving Wikipedia.',
     primaryLabel: 'Remove link',
-    secondaryLabel: 'Dismiss'
+    secondaryLabel: 'Dismiss',
+    successTitle: 'Removed duplicate link',
+    successMessage: 'Thank you for improving Wikipedia.'
   },
-  {
-    key: 'isabella-uk-spelling',
-    articleTitle: 'Isabella I of Castile',
-    articleDescription: 'Queen of Castile and León',
-    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Isabella_I_of_Castile.jpg/320px-Isabella_I_of_Castile.jpg',
-    articleSnippet:
-      'Girón. Desiring to depose Henry and establish Infante Alfonso on the throne, Pacheco and his followers circulated rumors that Infanta Joanna was actually the child of Beltrán de la Cueva and demanded that Alfonso be named the King\'s successor.',
+  externalLink: {
+    taskTitle: 'Remove external link',
+    taskDescription:
+      'This link points to an external website. Help readers stay focused on the content by removing this link, moving it to the “External links” section, or converting it into a citation if appropriate.',
+    primaryLabel: 'Remove link',
+    secondaryLabel: 'Dismiss',
+    successTitle: 'Removed the external link',
+    successMessage: 'That section is now more focused on encyclopedic content.'
+  },
+  headingLevel: {
+    taskTitle: 'Adjust heading level',
+    taskDescription:
+      'This heading level may not follow the correct sequential structure. Help readers navigate the content more easily by using the correct heading level.',
+    primaryLabel: 'Adjust heading',
+    secondaryLabel: 'Dismiss',
+    successTitle: 'Adjusted the heading',
+    successMessage: 'The article structure is now clearer.'
+  },
+  imageCaption: {
+    taskTitle: 'Add image caption',
+    taskDescription:
+      'This image does not have a caption. Help readers understand why the image is relevant by adding a short caption.',
+    primaryLabel: 'Add caption',
+    secondaryLabel: 'Dismiss',
+    successTitle: 'Added a caption',
+    successMessage: 'The image is easier to understand in context.'
+  },
+  englishSpelling: {
     taskTitle: 'Change English spelling',
     taskDescription:
-      'This word uses a different variety of English than the one used in the rest of this article.',
-    question: 'Replace “rumors” with “rumours”?',
+      'This word uses a different variety of English than the one used in the rest of this article. Help readers by changing the spelling to match the rest of the article.',
+    primaryLabel: 'Replace',
+    secondaryLabel: 'Dismiss',
     successTitle: 'Updated the spelling',
-    successMessage: 'Thanks for keeping the article consistent.',
-    primaryLabel: 'Apply change',
-    secondaryLabel: 'Dismiss'
+    successMessage: 'Thanks for keeping the article consistent.'
   },
-  {
-    key: 'paris-date-link',
+  redirectLink: {
+    taskTitle: 'Redirect link',
+    taskDescription:
+      'This link points to a redirect page. Help readers reach the intended article directly by linking to the final target.',
+    primaryLabel: 'Update link',
+    secondaryLabel: 'Dismiss',
+    successTitle: 'Updated the redirect',
+    successMessage: 'The link now points directly to the article.'
+  },
+  yearLink: {
+    taskTitle: 'Fix year link',
+    taskDescription:
+      'This link points to a different year than the one shown in the text. Help make the article more accurate by updating the displayed year and linked year to match.',
+    primaryLabel: 'Use correct year',
+    secondaryLabel: 'Dismiss',
+    successTitle: 'Fixed the year link',
+    successMessage: 'The linked year now matches the text.'
+  },
+  cliche: {
+    taskTitle: 'Remove clichés and idioms',
+    taskDescription:
+      'This word uses a cliché or idiom. Help readers understand the content more clearly by using direct and literal language instead.',
+    primaryLabel: 'Remove word',
+    secondaryLabel: 'Dismiss',
+    successTitle: 'Revised the wording',
+    successMessage: 'The sentence is clearer and more neutral now.'
+  },
+  relativeTime: {
+    taskTitle: 'Edit relative time references',
+    taskDescription:
+      'This text uses a relative time reference. Help readers avoid confusion by replacing it with a specific date or time.',
+    primaryLabel: 'Edit text',
+    secondaryLabel: 'Dismiss',
+    successTitle: 'Updated the time reference',
+    successMessage: 'The wording will age better over time.'
+  },
+  editorialLanguage: {
+    taskTitle: 'Revise editorial language',
+    taskDescription:
+      'This wording adds opinion rather than stating facts. Help readers trust the article by revising the text to keep an impartial tone.',
+    primaryLabel: 'Revise',
+    secondaryLabel: 'Dismiss',
+    successTitle: 'Revised the language',
+    successMessage: 'The tone is now more neutral.'
+  },
+  changeTerm: {
+    taskTitle: 'Change term',
+    taskDescription:
+      'This article uses the term “aircraft” instead of “airplane”. Help readers read the article consistently by updating the wording.',
+    primaryLabel: 'Change word',
+    secondaryLabel: 'Dismiss',
+    successTitle: 'Updated the term',
+    successMessage: 'The terminology is now consistent.'
+  },
+  aiContent: {
+    taskTitle: 'Potential AI-generated content',
+    taskDescription:
+      'This text may include AI-generated content. Help readers trust the article by removing any AI content or rewriting any inaccurate, unverifiable, or unencyclopedic information.',
+    primaryLabel: 'Revise text',
+    secondaryLabel: 'Dismiss',
+    successTitle: 'Reviewed the content',
+    successMessage: 'The article now reads more reliably.'
+  }
+};
+
+function buildSuggestedEdit( config ) {
+  return {
+    ...suggestedEditTemplates[ config.template ],
+    key: config.key,
+    sequenceNumber: config.sequenceNumber,
+    articleTitle: config.articleTitle,
+    articleDescription: config.articleDescription,
+    articleImage: config.articleImage,
+    articleSnippetHtml: config.articleSnippetHtml,
+    resolvedSnippetHtml: config.resolvedSnippetHtml || config.articleSnippetHtml,
+    question: config.question || ''
+  };
+}
+
+const suggestedEdits = ref( [
+  buildSuggestedEdit( {
+    key: 'isabella-duplicate-link',
+    sequenceNumber: 1,
+    template: 'duplicateLink',
+    articleTitle: 'Isabella I of Castile',
+    articleDescription: 'Queen of Castile and León',
+    articleImage: isabellaSuggestedEditImage,
+    articleSnippetHtml:
+      'Isabella and Ferdinand are known for being the first monarchs to be referred to as the queen and king of <a href="#" class="suggested-edit-card__link"><span class="suggested-edit-card__highlight">Spain</span></a>, respectively. Their actions included completion of the <a href="#" class="suggested-edit-card__link">Reconquista</a>, the <a href="#" class="suggested-edit-card__link">Alhambra Decree</a> which ordered the <a href="#" class="suggested-edit-card__link">mass expulsion of Jews</a> from <a href="#" class="suggested-edit-card__link"><span class="suggested-edit-card__highlight">Spain</span></a>, initiating the <a href="#" class="suggested-edit-card__link">Spanish Inquisition</a>, financing Christopher Columbus’s 1492 voyage to the New World.',
+    resolvedSnippetHtml:
+      'Isabella and Ferdinand are known for being the first monarchs to be referred to as the queen and king of <a href="#" class="suggested-edit-card__link">Spain</a>, respectively. Their actions included completion of the <a href="#" class="suggested-edit-card__link">Reconquista</a>, the <a href="#" class="suggested-edit-card__link">Alhambra Decree</a> which ordered the <a href="#" class="suggested-edit-card__link">mass expulsion of Jews</a> from Spain, initiating the <a href="#" class="suggested-edit-card__link">Spanish Inquisition</a>, financing Christopher Columbus’s 1492 voyage to the New World.'
+  } ),
+  buildSuggestedEdit( {
+    key: 'isabella-uk-spelling',
+    sequenceNumber: 2,
+    template: 'englishSpelling',
+    articleTitle: 'Isabella I of Castile',
+    articleDescription: 'Queen of Castile and León',
+    articleImage: isabellaSuggestedEditImage,
+    articleSnippetHtml:
+      'Girón. Desiring to depose Henry and establish Infante Alfonso on the throne, Pacheco and his followers circulated <span class="suggested-edit-card__highlight">rumors</span> that Infanta Joanna was actually the child of Beltrán de la Cueva.',
+    resolvedSnippetHtml:
+      'Girón. Desiring to depose Henry and establish Infante Alfonso on the throne, Pacheco and his followers circulated <span class="suggested-edit-card__highlight">rumours</span> that Infanta Joanna was actually the child of Beltrán de la Cueva.',
+    question: 'Replace “rumors” with “rumours”?'
+  } ),
+  buildSuggestedEdit( {
+    key: 'paris-specific-link',
+    sequenceNumber: 3,
+    template: 'specificPage',
     articleTitle: 'Paris',
     articleDescription: 'Capital and largest city of France',
-    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/Tour_Eiffel_Wikimedia_Commons.jpg/320px-Tour_Eiffel_Wikimedia_Commons.jpg',
-    articleSnippet:
-      'Paris developed from a Celtic settlement on the Île de la Cité into a major political, cultural, and commercial center of Europe. Over centuries the city expanded on both banks of the Seine.',
-    taskTitle: 'Link a key date',
-    taskDescription:
-      'Add a helpful link so readers can quickly learn more about this historical period.',
-    question: 'Add a link to “Île de la Cité”?',
-    successTitle: 'Linked a key topic',
-    successMessage: 'That link will help readers explore the topic.',
-    primaryLabel: 'Add link',
-    secondaryLabel: 'Dismiss'
-  }
+    articleImage: parisSuggestedEditImage,
+    articleSnippetHtml:
+      'Paris developed from a Celtic settlement on the <a href="#" class="suggested-edit-card__link"><span class="suggested-edit-card__highlight">Cité</span></a> into a major political, cultural, and commercial center of Europe. Over centuries the city expanded on both banks of the Seine.',
+    resolvedSnippetHtml:
+      'Paris developed from a Celtic settlement on the <a href="#" class="suggested-edit-card__link">Île de la Cité</a> into a major political, cultural, and commercial center of Europe. Over centuries the city expanded on both banks of the Seine.'
+  } ),
+  buildSuggestedEdit( {
+    key: 'ada-citation',
+    sequenceNumber: 4,
+    template: 'addCitation',
+    articleTitle: 'Ada Lovelace',
+    articleDescription: 'English mathematician and writer',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/a/a4/Ada_Lovelace_portrait.jpg',
+    articleSnippetHtml:
+      'Lovelace is often regarded as the first computer programmer because her notes included a method for calculating Bernoulli numbers on Babbage’s machine.',
+    question: 'Add a citation to support this statement?'
+  } ),
+  buildSuggestedEdit( {
+    key: 'apollo-convert-ref',
+    sequenceNumber: 5,
+    template: 'convertReference',
+    articleTitle: 'Apollo 11',
+    articleDescription: 'First crewed Moon landing mission',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/9/9c/Apollo_11_insignia.png',
+    articleSnippetHtml:
+      'Apollo 11 landed the first two people on the Moon in July 1969.<sup>[book]</sup>',
+    question: 'Convert this source into a full reference?'
+  } ),
+  buildSuggestedEdit( {
+    key: 'jane-external-link',
+    sequenceNumber: 6,
+    template: 'externalLink',
+    articleTitle: 'Jane Austen',
+    articleDescription: 'English novelist',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/c/cc/CassandraAusten-JaneAusten%28c.1810%29_hires.jpg',
+    articleSnippetHtml:
+      'Austen’s novels critique the British landed gentry and often focus on women’s dependence on marriage. See also <a href="#" class="suggested-edit-card__link">this fan website</a> for a character guide.'
+  } ),
+  buildSuggestedEdit( {
+    key: 'python-heading',
+    sequenceNumber: 7,
+    template: 'headingLevel',
+    articleTitle: 'Python (programming language)',
+    articleDescription: 'High-level programming language',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/c/c3/Python-logo-notext.svg',
+    articleSnippetHtml:
+      '<strong>== History ==</strong><br><strong>==== Design philosophy ====</strong><br>Python emphasizes code readability and a large standard library.'
+  } ),
+  buildSuggestedEdit( {
+    key: 'hubble-caption',
+    sequenceNumber: 8,
+    template: 'imageCaption',
+    articleTitle: 'Hubble Space Telescope',
+    articleDescription: 'Space telescope in low Earth orbit',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/3/3f/HST-SM4.jpeg',
+    articleSnippetHtml:
+      '[Image inserted here with no caption]<br>The telescope was launched in 1990 and remains one of the most productive scientific instruments ever built.'
+  } ),
+  buildSuggestedEdit( {
+    key: 'newyork-redirect',
+    sequenceNumber: 9,
+    template: 'redirectLink',
+    articleTitle: 'New York City',
+    articleDescription: 'Most populous city in the United States',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/4/47/New_york_times_square-terabass.jpg',
+    articleSnippetHtml:
+      'The city is located at the southern tip of <a href="#" class="suggested-edit-card__link"><span class="suggested-edit-card__highlight">Manhattan Island redirect</span></a> and anchors the largest metropolitan area in the United States.',
+    resolvedSnippetHtml:
+      'The city is located at the southern tip of <a href="#" class="suggested-edit-card__link">Manhattan</a> and anchors the largest metropolitan area in the United States.'
+  } ),
+  buildSuggestedEdit( {
+    key: 'wwii-year-link',
+    sequenceNumber: 10,
+    template: 'yearLink',
+    articleTitle: 'World War II',
+    articleDescription: 'Global war from 1939 to 1945',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/a/ad/Nagasakibomb.jpg',
+    articleSnippetHtml:
+      'The conflict ended in <a href="#" class="suggested-edit-card__link"><span class="suggested-edit-card__highlight">1944</span></a> after the surrender of Japan in 1945.',
+    resolvedSnippetHtml:
+      'The conflict ended in <a href="#" class="suggested-edit-card__link">1945</a> after the surrender of Japan in 1945.'
+  } ),
+  buildSuggestedEdit( {
+    key: 'einstein-cliche',
+    sequenceNumber: 11,
+    template: 'cliche',
+    articleTitle: 'Albert Einstein',
+    articleDescription: 'German-born theoretical physicist',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/d/d3/Albert_Einstein_Head.jpg',
+    articleSnippetHtml:
+      'Einstein’s 1905 papers turned physics upside down and changed the field forever.',
+    resolvedSnippetHtml:
+      'Einstein’s 1905 papers significantly changed the development of modern physics.'
+  } ),
+  buildSuggestedEdit( {
+    key: 'olympics-relative-time',
+    sequenceNumber: 12,
+    template: 'relativeTime',
+    articleTitle: '2024 Summer Olympics',
+    articleDescription: 'International multi-sport event in Paris',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/5/57/Paris_2024_logo.svg',
+    articleSnippetHtml:
+      'The event concluded last summer after two weeks of competition in Paris.',
+    resolvedSnippetHtml:
+      'The event concluded on 11 August 2024 after two weeks of competition in Paris.'
+  } ),
+  buildSuggestedEdit( {
+    key: 'tesla-editorial',
+    sequenceNumber: 13,
+    template: 'editorialLanguage',
+    articleTitle: 'Nikola Tesla',
+    articleDescription: 'Inventor and electrical engineer',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/d/d4/N.Tesla.JPG',
+    articleSnippetHtml:
+      'Tesla’s visionary genius made him one of the most brilliant inventors in history.',
+    resolvedSnippetHtml:
+      'Tesla is widely known for his work in electrical engineering and wireless communication.'
+  } ),
+  buildSuggestedEdit( {
+    key: 'wright-change-term',
+    sequenceNumber: 14,
+    template: 'changeTerm',
+    articleTitle: 'Wright brothers',
+    articleDescription: 'American aviation pioneers',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/a/af/Orville_Wright_1905-crop.jpg',
+    articleSnippetHtml:
+      'Their work on powered aircraft helped define the early history of human flight.',
+    resolvedSnippetHtml:
+      'Their work on powered airplane design helped define the early history of human flight.'
+  } ),
+  buildSuggestedEdit( {
+    key: 'mlk-ai',
+    sequenceNumber: 15,
+    template: 'aiContent',
+    articleTitle: 'Martin Luther King Jr.',
+    articleDescription: 'American civil rights leader',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/0/05/Martin_Luther_King%2C_Jr..jpg',
+    articleSnippetHtml:
+      'King was an inspirational figure whose universally beloved speeches flawlessly transformed the soul of a nation in every possible way.'
+  } ),
+  buildSuggestedEdit( {
+    key: 'frida-citation',
+    sequenceNumber: 16,
+    template: 'addCitation',
+    articleTitle: 'Frida Kahlo',
+    articleDescription: 'Mexican painter',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/1/1f/Frida_Kahlo%2C_by_Guillermo_Kahlo.jpg',
+    articleSnippetHtml:
+      'Her work became internationally recognized in the decades after her death and influenced later feminist art movements.',
+    question: 'Add a citation to support this statement?'
+  } ),
+  buildSuggestedEdit( {
+    key: 'rome-specific-link',
+    sequenceNumber: 17,
+    template: 'specificPage',
+    articleTitle: 'Rome',
+    articleDescription: 'Capital city of Italy',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/0/00/Altare_della_Patria_%28Rome%29.jpg',
+    articleSnippetHtml:
+      'The city grew around the <a href="#" class="suggested-edit-card__link"><span class="suggested-edit-card__highlight">Forum</span></a> and became the center of a vast empire.',
+    resolvedSnippetHtml:
+      'The city grew around the <a href="#" class="suggested-edit-card__link">Roman Forum</a> and became the center of a vast empire.'
+  } ),
+  buildSuggestedEdit( {
+    key: 'turing-convert-ref',
+    sequenceNumber: 18,
+    template: 'convertReference',
+    articleTitle: 'Alan Turing',
+    articleDescription: 'English mathematician and computer scientist',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/a/a1/Alan_Turing_Aged_16.jpg',
+    articleSnippetHtml:
+      'Turing played a key role in cracking encrypted German naval communications during World War II.<sup>[news]</sup>'
+  } ),
+  buildSuggestedEdit( {
+    key: 'moon-duplicate-link',
+    sequenceNumber: 19,
+    template: 'duplicateLink',
+    articleTitle: 'Moon',
+    articleDescription: 'Earth’s only natural satellite',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/e/e1/FullMoon2010.jpg',
+    articleSnippetHtml:
+      'The <a href="#" class="suggested-edit-card__link"><span class="suggested-edit-card__highlight">Moon</span></a> is Earth’s only natural satellite. The Moon influences tides and stabilizes Earth’s axial tilt.',
+    resolvedSnippetHtml:
+      'The <a href="#" class="suggested-edit-card__link">Moon</a> is Earth’s only natural satellite. It influences tides and stabilizes Earth’s axial tilt.'
+  } ),
+  buildSuggestedEdit( {
+    key: 'london-external-link',
+    sequenceNumber: 20,
+    template: 'externalLink',
+    articleTitle: 'London',
+    articleDescription: 'Capital city of England and the United Kingdom',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/c/cd/London_Montage_L.jpg',
+    articleSnippetHtml:
+      'London is one of the world’s leading financial centers. For restaurant recommendations, see <a href="#" class="suggested-edit-card__link">this travel blog</a>.'
+  } ),
+  buildSuggestedEdit( {
+    key: 'mars-heading',
+    sequenceNumber: 21,
+    template: 'headingLevel',
+    articleTitle: 'Mars',
+    articleDescription: 'Fourth planet from the Sun',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/0/02/OSIRIS_Mars_true_color.jpg',
+    articleSnippetHtml:
+      '<strong>== Geology ==</strong><br><strong>==== Surface features ====</strong><br>Mars has volcanoes, valleys, deserts, and polar ice caps.'
+  } ),
+  buildSuggestedEdit( {
+    key: 'notredame-caption',
+    sequenceNumber: 22,
+    template: 'imageCaption',
+    articleTitle: 'Notre-Dame de Paris',
+    articleDescription: 'Medieval Catholic cathedral in Paris',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/a/a6/Notre-Dame_de_Paris_2013-07.JPG',
+    articleSnippetHtml:
+      '[Image inserted here with no caption]<br>The cathedral is considered one of the finest examples of French Gothic architecture.'
+  } ),
+  buildSuggestedEdit( {
+    key: 'canada-spelling',
+    sequenceNumber: 23,
+    template: 'englishSpelling',
+    articleTitle: 'Canada',
+    articleDescription: 'Country in North America',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/c/cf/Flag_of_Canada.svg',
+    articleSnippetHtml:
+      'The country’s national <span class="suggested-edit-card__highlight">color</span> symbolism often appears in official documents.',
+    resolvedSnippetHtml:
+      'The country’s national <span class="suggested-edit-card__highlight">colour</span> symbolism often appears in official documents.',
+    question: 'Replace “color” with “colour”?'
+  } ),
+  buildSuggestedEdit( {
+    key: 'berlin-redirect',
+    sequenceNumber: 24,
+    template: 'redirectLink',
+    articleTitle: 'Berlin',
+    articleDescription: 'Capital and largest city of Germany',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/a/a5/Berlin_Skyline_Fernsehturm_02.jpg',
+    articleSnippetHtml:
+      'Berlin is built along the banks of the <a href="#" class="suggested-edit-card__link"><span class="suggested-edit-card__highlight">River Spree redirect</span></a> and is one of Europe’s most populous cities.',
+    resolvedSnippetHtml:
+      'Berlin is built along the banks of the <a href="#" class="suggested-edit-card__link">Spree</a> and is one of Europe’s most populous cities.'
+  } ),
+  buildSuggestedEdit( {
+    key: 'internet-year-link',
+    sequenceNumber: 25,
+    template: 'yearLink',
+    articleTitle: 'Internet',
+    articleDescription: 'Global system of computer networks',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/4/4e/Internet_map_1024.jpg',
+    articleSnippetHtml:
+      'Commercial internet service providers began to emerge in <a href="#" class="suggested-edit-card__link"><span class="suggested-edit-card__highlight">1988</span></a>, but the text says 1989.',
+    resolvedSnippetHtml:
+      'Commercial internet service providers began to emerge in <a href="#" class="suggested-edit-card__link">1989</a>.'
+  } ),
+  buildSuggestedEdit( {
+    key: 'oceans-cliche',
+    sequenceNumber: 26,
+    template: 'cliche',
+    articleTitle: 'Pacific Ocean',
+    articleDescription: 'Largest and deepest ocean on Earth',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/6/6f/Pacific_Ocean_-_en.png',
+    articleSnippetHtml:
+      'The Pacific plays a huge role in global climate and trade routes.',
+    resolvedSnippetHtml:
+      'The Pacific has an important role in global climate and trade routes.'
+  } ),
+  buildSuggestedEdit( {
+    key: 'everest-relative-time',
+    sequenceNumber: 27,
+    template: 'relativeTime',
+    articleTitle: 'Mount Everest',
+    articleDescription: 'Earth’s highest mountain above sea level',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/d/d1/Mount_Everest_as_seen_from_Drukair2_PLW_edit.jpg',
+    articleSnippetHtml:
+      'The climbing season reopened last year after weather disruptions.',
+    resolvedSnippetHtml:
+      'The climbing season reopened in 2025 after weather disruptions.'
+  } ),
+  buildSuggestedEdit( {
+    key: 'shakespeare-editorial',
+    sequenceNumber: 28,
+    template: 'editorialLanguage',
+    articleTitle: 'William Shakespeare',
+    articleDescription: 'English playwright and poet',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/a/a2/Shakespeare.jpg',
+    articleSnippetHtml:
+      'Shakespeare wrote the most extraordinary plays in the history of the English language.',
+    resolvedSnippetHtml:
+      'Shakespeare wrote plays that are among the most studied works in the English language.'
+  } ),
+  buildSuggestedEdit( {
+    key: 'boeing-change-term',
+    sequenceNumber: 29,
+    template: 'changeTerm',
+    articleTitle: 'Boeing 747',
+    articleDescription: 'American wide-body commercial jet airliner',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/2/2e/B747_ANA_JA8961.jpg',
+    articleSnippetHtml:
+      'The aircraft became one of the best-known long-haul passenger aircraft in aviation history.',
+    resolvedSnippetHtml:
+      'The airplane became one of the best-known long-haul passenger airplanes in aviation history.'
+  } ),
+  buildSuggestedEdit( {
+    key: 'chatgpt-ai',
+    sequenceNumber: 30,
+    template: 'aiContent',
+    articleTitle: 'ChatGPT',
+    articleDescription: 'Artificial intelligence chatbot by OpenAI',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg',
+    articleSnippetHtml:
+      'The service instantly revolutionized every field of knowledge and produced perfectly accurate answers for nearly all users.'
+  } ),
+  buildSuggestedEdit( {
+    key: 'solar-citation',
+    sequenceNumber: 31,
+    template: 'addCitation',
+    articleTitle: 'Solar eclipse',
+    articleDescription: 'Astronomical event in which the Moon obscures the Sun',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/1/14/1999_Total_Eclipse.jpg',
+    articleSnippetHtml:
+      'Total solar eclipses can significantly affect local animal behavior and ambient temperature.',
+    question: 'Add a citation to support this statement?'
+  } ),
+  buildSuggestedEdit( {
+    key: 'newton-convert-ref',
+    sequenceNumber: 32,
+    template: 'convertReference',
+    articleTitle: 'Isaac Newton',
+    articleDescription: 'English mathematician, physicist, and astronomer',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/d/d4/Sir_Isaac_Newton_%281643-1727%29.jpg',
+    articleSnippetHtml:
+      'Newton formulated the laws of motion and universal gravitation that dominated scientific thought for centuries.<sup>[website]</sup>'
+  } )
 ] );
 
 const currentSurveyStep = computed( () => surveySteps[ currentSurveyStepIndex.value ] );
@@ -374,14 +848,8 @@ const currentTaskNumber = computed( () => currentTaskIndex.value + 1 );
 const activeProgressTask = computed(
   () => ( currentTaskIndex.value >= 0 ? progressionTasks.value[ currentTaskIndex.value ] : null )
 );
-const shouldCollapseProgression = computed( () => completedTaskCount.value < 2 );
-const visibleTasks = computed( () => {
-  if ( shouldCollapseProgression.value && !isProgressionExpanded.value ) {
-    return progressionTasks.value.slice( 0, 2 );
-  }
-
-  return progressionTasks.value;
-} );
+const shouldCollapseProgression = computed( () => false );
+const visibleTasks = computed( () => progressionTasks.value );
 const currentQuizAnswer = computed(
   () => selectedQuizAnswers.value[ currentQuizStep.value.key ] || ''
 );
@@ -393,6 +861,9 @@ const remainingSuggestedEdits = computed(
 );
 const currentSuggestedEdit = computed(
   () => remainingSuggestedEdits.value[ currentSuggestedEditIndex.value ] || null
+);
+const currentSuggestedEditSequenceNumber = computed(
+  () => currentSuggestedEdit.value?.sequenceNumber || 1
 );
 const currentSurveyQuestionNumber = computed( () => {
   switch ( currentSurveyStep.value ) {
@@ -409,7 +880,13 @@ const currentSurveyQuestionNumber = computed( () => {
   }
 } );
 const shouldShowChromeFooter = computed(
-  () => ![ 'survey', 'quiz', 'suggested-edits' ].includes( currentView.value )
+  () => ![ 'signup', 'survey', 'quiz', 'suggested-edits' ].includes( currentView.value )
+);
+const shouldShowChromeSiteHeader = computed(
+  () => currentView.value !== 'suggested-edits'
+);
+const chromeHeaderMode = computed(
+  () => ( currentView.value === 'signup' ? 'account-creation' : 'default' )
 );
 
 const surveyProgressValue = computed( () => {
@@ -438,7 +915,7 @@ const canAdvanceSurvey = computed( () => {
     case 'languages':
       return selectedLanguages.value.length > 0;
     case 'email':
-      return email.value.trim().length > 0;
+      return true;
     default:
       return false;
   }
@@ -478,6 +955,11 @@ function goToNextSurveyStep() {
     currentSurveyStepIndex.value += 1;
     resumeSurveyStepIndex.value = currentSurveyStepIndex.value;
   }
+}
+
+function goToWelcomeSurvey() {
+  currentSurveyStepIndex.value = 0;
+  currentView.value = 'survey';
 }
 
 function goToPreviousSurveyStep() {
@@ -581,8 +1063,12 @@ function goToArticle() {
 
 function goToSuggestedEdits() {
   currentSuggestedEditIndex.value = 0;
-  suggestedEditOrdinal.value = 1;
   currentView.value = 'suggested-edits';
+  requestAnimationFrame( () => {
+    if ( suggestedEditsViewport.value ) {
+      suggestedEditsViewport.value.scrollLeft = 0;
+    }
+  } );
 }
 
 function resolveSuggestedEdit( mode, suggestionKey ) {
@@ -593,6 +1079,9 @@ function resolveSuggestedEdit( mode, suggestionKey ) {
   }
 
   suggestion.resolving = mode;
+  if ( mode === 'complete' && suggestion.resolvedSnippetHtml ) {
+    suggestion.articleSnippetHtml = suggestion.resolvedSnippetHtml;
+  }
 
   if ( mode === 'complete' && !progressionTasks.value.find( ( task ) => task.key === 'first-edit' )?.completed ) {
     progressionTasks.value = progressionTasks.value.map( ( task ) =>
@@ -611,7 +1100,6 @@ function resolveSuggestedEdit( mode, suggestionKey ) {
   setTimeout( () => {
     suggestion.resolved = true;
     suggestion.resolving = '';
-    suggestedEditOrdinal.value += 1;
 
     const remaining = remainingSuggestedEdits.value;
     if ( remaining.length === 0 ) {
@@ -625,6 +1113,20 @@ function resolveSuggestedEdit( mode, suggestionKey ) {
       remaining.length - 1
     );
   }, mode === 'complete' ? 1700 : 420 );
+}
+
+function handleSuggestedEditsScroll( event ) {
+  const viewport = event.target;
+  const firstCard = viewport.querySelector( '.suggested-edit-card' );
+
+  if ( !firstCard ) {
+    return;
+  }
+
+  const styles = window.getComputedStyle( viewport.querySelector( '.suggested-edits-page__track' ) );
+  const gap = Number.parseFloat( styles.columnGap || styles.gap || '0' );
+  const cardWidth = firstCard.getBoundingClientRect().width + gap;
+  currentSuggestedEditIndex.value = Math.max( 0, Math.round( viewport.scrollLeft / cardWidth ) );
 }
 
 function handleArticleScroll() {
@@ -703,10 +1205,92 @@ function getQuizOptionState( optionKey ) {
 <template>
   <ChromeWrapper
     :show-footer="shouldShowChromeFooter"
+    :show-site-header="shouldShowChromeSiteHeader"
+    :header-mode="chromeHeaderMode"
     @go-home="goToHomepage"
     @go-article="goToArticle"
   >
-    <section v-if="currentView === 'survey'" class="survey-page">
+    <section v-if="currentView === 'signup'" class="account-creation-page">
+      <div class="account-creation-page__panel">
+        <div class="account-creation-page__copy">
+          <h1 class="account-creation-page__title">
+            Create your account
+          </h1>
+        </div>
+
+        <div class="account-creation-form">
+          <CdxField class="account-creation-form__field">
+            <template #label>
+              Username
+            </template>
+            <CdxTextInput
+              v-model="accountUsername"
+              aria-label="Username"
+            />
+          </CdxField>
+
+          <CdxField class="account-creation-form__field">
+            <template #label>
+              Password
+            </template>
+            <CdxTextInput
+              v-model="accountPassword"
+              input-type="password"
+              aria-label="Password"
+            />
+          </CdxField>
+
+          <CdxField class="account-creation-form__field">
+            <template #label>
+              Confirm password
+            </template>
+            <CdxTextInput
+              v-model="accountConfirmPassword"
+              input-type="password"
+              aria-label="Confirm password"
+            />
+          </CdxField>
+
+          <CdxField class="account-creation-form__field">
+            <template #label>
+              Email address
+            </template>
+            <CdxTextInput
+              input-type="email"
+              placeholder="Enter your email address"
+              aria-label="Email address"
+            />
+          </CdxField>
+        </div>
+
+        <p class="account-creation-page__disclaimer">
+          This site is protected by hCaptcha and its
+          <a href="https://www.hcaptcha.com/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>
+          and
+          <a href="https://www.hcaptcha.com/terms" target="_blank" rel="noreferrer">Terms of Service</a>
+          apply.
+        </p>
+
+        <CdxButton
+          class="account-creation-page__submit"
+          action="progressive"
+          weight="primary"
+          size="large"
+          @click="goToWelcomeSurvey"
+        >
+          Create your account
+        </CdxButton>
+      </div>
+    </section>
+
+    <section
+      v-else-if="currentView === 'survey'"
+      class="survey-page"
+      :class="{
+        'survey-page--welcome': currentSurveyStep === 'welcome',
+        'survey-page--steps': currentSurveyStep !== 'welcome'
+      }"
+    >
       <div v-if="currentSurveyStep === 'welcome'" class="survey-page__panel survey-page__panel--welcome">
         <img
           class="survey-page__hero-image"
@@ -718,11 +1302,9 @@ function getQuizOptionState( optionKey ) {
           <h1 class="survey-page__title">
             Welcome, {{ userName }}
           </h1>
-          <p class="survey-page__lead">
-            Wikipedia is built by people like you.
-          </p>
-          <p class="survey-page__body">
-            Respond four quick questions to customize your experience.
+          <p class="survey-page__body survey-page__body--welcome">
+            Wikipedia is built by people like you. Respond four quick questions to customize your
+            experience.
           </p>
         </div>
 
@@ -886,26 +1468,28 @@ function getQuizOptionState( optionKey ) {
         </template>
 
         <div class="survey-page__footer-nav">
-          <CdxButton
-            v-if="currentSurveyStep !== 'reason'"
-            class="survey-page__nav-link"
-            weight="quiet"
-            @click="goToPreviousSurveyStep"
-          >
-            <CdxIcon :icon="cdxIconArrowPrevious" />
-            Previous
-          </CdxButton>
+          <div class="survey-page__footer-nav-inner">
+            <CdxButton
+              v-if="currentSurveyStep !== 'reason'"
+              class="survey-page__nav-link"
+              weight="quiet"
+              @click="goToPreviousSurveyStep"
+            >
+              <CdxIcon :icon="cdxIconArrowPrevious" />
+              Previous
+            </CdxButton>
 
-          <CdxButton
-            v-if="canAdvanceSurvey"
-            class="survey-page__nav-link survey-page__nav-link--next"
-            weight="quiet"
-            action="progressive"
-            @click="currentSurveyStep === 'email' ? completeSurvey() : goToNextSurveyStep()"
-          >
-            {{ currentSurveyStep === 'email' ? 'Complete' : 'Next' }}
-            <CdxIcon :icon="cdxIconArrowNext" />
-          </CdxButton>
+            <CdxButton
+              v-if="canAdvanceSurvey"
+              class="survey-page__nav-link survey-page__nav-link--next"
+              weight="quiet"
+              action="progressive"
+              @click="currentSurveyStep === 'email' ? completeSurvey() : goToNextSurveyStep()"
+            >
+              {{ currentSurveyStep === 'email' ? 'Complete' : 'Next' }}
+              <CdxIcon :icon="cdxIconArrowNext" />
+            </CdxButton>
+          </div>
         </div>
       </div>
     </section>
@@ -997,34 +1581,32 @@ function getQuizOptionState( optionKey ) {
       </article>
 
       <div class="quiz-page__footer-nav">
-        <CdxButton
-          v-if="currentQuizIndex > 0"
-          class="quiz-page__nav-link"
-          weight="quiet"
-          @click="goToPreviousQuizStep"
-        >
-          <template #icon>
+        <div class="quiz-page__footer-nav-inner">
+          <CdxButton
+            v-if="currentQuizIndex > 0"
+            class="quiz-page__nav-link"
+            weight="quiet"
+            @click="goToPreviousQuizStep"
+          >
             <CdxIcon :icon="cdxIconArrowPrevious" />
-          </template>
-          Previous
-        </CdxButton>
+            Previous
+          </CdxButton>
 
-        <CdxButton
-          v-if="currentQuizAnswer"
-          class="quiz-page__nav-link quiz-page__nav-link--next"
-          weight="quiet"
-          action="progressive"
-          @click="goToNextQuizStep"
-        >
-          {{ currentQuizIndex === quizSteps.length - 1 ? 'Complete quiz' : 'Next' }}
-          <template #icon>
+          <CdxButton
+            v-if="currentQuizAnswer"
+            class="quiz-page__nav-link quiz-page__nav-link--next"
+            weight="quiet"
+            action="progressive"
+            @click="goToNextQuizStep"
+          >
+            {{ currentQuizIndex === quizSteps.length - 1 ? 'Complete quiz' : 'Next' }}
             <CdxIcon :icon="cdxIconArrowNext" />
-          </template>
-        </CdxButton>
+          </CdxButton>
+        </div>
       </div>
     </section>
 
-    <section v-else-if="currentView === 'suggested-edits'" class="suggested-edits-page">
+    <template v-else-if="currentView === 'suggested-edits'">
       <header class="suggested-edits-page__header">
         <CdxButton
           class="suggested-edits-page__back"
@@ -1037,92 +1619,101 @@ function getQuizOptionState( optionKey ) {
         <h1 class="suggested-edits-page__header-title">
           Suggested edits
         </h1>
+        <span class="suggested-edits-page__filters" aria-hidden="true">
+          <CdxIcon :icon="cdxIconConfigure" />
+        </span>
       </header>
 
-      <p class="suggested-edits-page__count">
-        <strong>{{ suggestedEditOrdinal }}</strong> of 32 suggestions
-      </p>
+      <section class="suggested-edits-page">
+        <p class="suggested-edits-page__count">
+          <strong>{{ currentSuggestedEditSequenceNumber }}</strong> of 32 suggestions
+        </p>
 
-      <div class="suggested-edits-page__viewport">
         <div
-          class="suggested-edits-page__track"
-          :style="{ transform: `translateX(calc(${ currentSuggestedEditIndex * -88 }% - ${ currentSuggestedEditIndex * 16 }px))` }"
+          ref="suggestedEditsViewport"
+          class="suggested-edits-page__viewport"
+          @scroll="handleSuggestedEditsScroll"
         >
-          <article
-            v-for="suggestion in remainingSuggestedEdits"
-            :key="suggestion.key"
-            class="suggested-edit-card"
-            :class="{
-              'suggested-edit-card--active': suggestion.key === currentSuggestedEdit?.key,
-              'suggested-edit-card--completing': suggestion.resolving === 'complete',
-              'suggested-edit-card--dismissing': suggestion.resolving === 'dismiss'
-            }"
+          <div
+            class="suggested-edits-page__track"
           >
-            <div class="suggested-edit-card__body">
-              <img
-                class="suggested-edit-card__thumbnail"
-                :src="suggestion.articleImage"
-                :alt="suggestion.articleTitle"
+            <article
+              v-for="suggestion in remainingSuggestedEdits"
+              :key="suggestion.key"
+              class="suggested-edit-card"
+              :class="{
+                'suggested-edit-card--active': suggestion.key === currentSuggestedEdit?.key,
+                'suggested-edit-card--completing': suggestion.resolving === 'complete',
+                'suggested-edit-card--dismissing': suggestion.resolving === 'dismiss'
+              }"
+            >
+              <div class="suggested-edit-card__body">
+                <img
+                  class="suggested-edit-card__thumbnail"
+                  :src="suggestion.articleImage"
+                  :alt="suggestion.articleTitle"
+                >
+                <div class="suggested-edit-card__copy">
+                  <h2 class="suggested-edit-card__title">
+                    {{ suggestion.articleTitle }}
+                  </h2>
+                  <p class="suggested-edit-card__description">
+                    {{ suggestion.articleDescription }}
+                  </p>
+                </div>
+
+                <div
+                  class="suggested-edit-card__excerpt"
+                  v-html="suggestion.articleSnippetHtml"
+                ></div>
+              </div>
+
+              <div
+                v-if="suggestion.resolving === 'complete'"
+                class="suggested-edit-card__panel suggested-edit-card__panel--success"
               >
-              <div class="suggested-edit-card__copy">
-                <h2 class="suggested-edit-card__title">
-                  {{ suggestion.articleTitle }}
-                </h2>
-                <p class="suggested-edit-card__description">
-                  {{ suggestion.articleDescription }}
+                <div class="suggested-edit-card__success-row">
+                  <span class="suggested-edit-card__success-icon">
+                    <CdxIcon :icon="cdxIconCheck" />
+                  </span>
+                  <strong>{{ suggestion.successTitle }}</strong>
+                </div>
+                <p class="suggested-edit-card__panel-description">
+                  {{ suggestion.successMessage }}
                 </p>
               </div>
 
-              <div class="suggested-edit-card__excerpt">
-                {{ suggestion.articleSnippet }}
-              </div>
-            </div>
+              <div
+                v-else
+                class="suggested-edit-card__panel suggested-edit-card__panel--task"
+              >
+                <h3 class="suggested-edit-card__panel-title">
+                  {{ suggestion.taskTitle }}
+                </h3>
+                <p class="suggested-edit-card__panel-description">
+                  {{ suggestion.taskDescription }}
+                </p>
+                <p v-if="suggestion.question" class="suggested-edit-card__question">
+                  {{ suggestion.question }}
+                </p>
 
-            <div
-              v-if="suggestion.resolving === 'complete'"
-              class="suggested-edit-card__panel suggested-edit-card__panel--success"
-            >
-              <div class="suggested-edit-card__success-row">
-                <span class="suggested-edit-card__success-icon">
-                  <CdxIcon :icon="cdxIconCheck" />
-                </span>
-                <strong>{{ suggestion.successTitle }}</strong>
+                <div class="suggested-edit-card__actions">
+                  <CdxButton @click="resolveSuggestedEdit( 'complete', suggestion.key )">
+                    {{ suggestion.primaryLabel }}
+                  </CdxButton>
+                  <CdxButton @click="resolveSuggestedEdit( 'dismiss', suggestion.key )">
+                    {{ suggestion.secondaryLabel }}
+                  </CdxButton>
+                  <button class="suggested-edit-card__menu" type="button" aria-label="More actions">
+                    ...
+                  </button>
+                </div>
               </div>
-              <p class="suggested-edit-card__panel-description">
-                {{ suggestion.successMessage }}
-              </p>
-            </div>
-
-            <div
-              v-else
-              class="suggested-edit-card__panel suggested-edit-card__panel--task"
-            >
-              <h3 class="suggested-edit-card__panel-title">
-                {{ suggestion.taskTitle }}
-              </h3>
-              <p class="suggested-edit-card__panel-description">
-                {{ suggestion.taskDescription }}
-              </p>
-              <p class="suggested-edit-card__question">
-                {{ suggestion.question }}
-              </p>
-
-              <div class="suggested-edit-card__actions">
-                <CdxButton @click="resolveSuggestedEdit( 'complete', suggestion.key )">
-                  {{ suggestion.primaryLabel }}
-                </CdxButton>
-                <CdxButton @click="resolveSuggestedEdit( 'dismiss', suggestion.key )">
-                  {{ suggestion.secondaryLabel }}
-                </CdxButton>
-                <button class="suggested-edit-card__menu" type="button" aria-label="More actions">
-                  ...
-                </button>
-              </div>
-            </div>
-          </article>
+            </article>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </template>
 
     <section v-else-if="currentView === 'article'" class="article-page">
       <header class="article-page__header">
@@ -1297,11 +1888,6 @@ function getQuizOptionState( optionKey ) {
                 {{ task.description }}
               </p>
 
-              <p v-if="task.completed" class="progression-item__status">
-                <CdxIcon :icon="cdxIconCheck" />
-                <span>Completed</span>
-              </p>
-
               <CdxButton
                 v-if="index === currentTaskIndex"
                 class="progression-item__button"
@@ -1318,17 +1904,6 @@ function getQuizOptionState( optionKey ) {
           </article>
         </div>
 
-        <div v-if="shouldCollapseProgression && progressionTasks.length > 2" class="homepage__see-all-wrap">
-          <div class="homepage__see-all-gradient" aria-hidden="true"></div>
-          <button
-            class="homepage__see-all"
-            type="button"
-            @click="toggleProgressionExpanded"
-          >
-            <span>{{ isProgressionExpanded ? 'Fewer steps' : 'More steps' }}</span>
-            <CdxIcon :icon="isProgressionExpanded ? cdxIconCollapse : cdxIconExpand" />
-          </button>
-        </div>
       </section>
 
       <section class="module module--mentor">
@@ -1345,7 +1920,7 @@ function getQuizOptionState( optionKey ) {
             <p class="module__body">
               You’ve been assigned an experienced editor to help you with editing
             </p>
-            <CdxButton class="module__mentor-button">
+            <CdxButton class="module__mentor-button" size="small">
               Ask your mentor
             </CdxButton>
           </div>
@@ -1381,6 +1956,7 @@ function getQuizOptionState( optionKey ) {
 
 <style scoped>
 .survey-page,
+.account-creation-page,
 .homepage,
 .quiz-page,
 .suggested-edits-page,
@@ -1389,17 +1965,82 @@ function getQuizOptionState( optionKey ) {
   background-color: var(--background-color-base);
 }
 
-.survey-page {
+.survey-page--steps {
   background-color: var(--background-color-neutral-subtle);
 }
 
+.account-creation-page__panel,
 .survey-page__panel,
 .homepage,
 .quiz-page,
 .suggested-edits-page,
 .article-page {
   max-width: 30rem;
-  padding: var(--spacing-150);
+  padding: var(--spacing-150) 16px;
+}
+
+.account-creation-page__panel {
+  display: flex;
+  min-height: calc(100vh - 54px);
+  flex-direction: column;
+  justify-content: flex-start;
+  padding-top: 16px;
+  background-color: var(--background-color-base);
+}
+
+.account-creation-page__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.account-creation-page__title {
+  margin: 0;
+  color: var(--color-emphasized);
+  font-family: var(--font-family-system-sans);
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: var(--font-weight-bold);
+}
+
+.account-creation-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.account-creation-form__field {
+  margin: 0;
+}
+
+.account-creation-form__field :deep(.cdx-text-input__input) {
+  min-height: 44px;
+  padding-right: 12px;
+  padding-left: 12px;
+}
+
+.account-creation-page__disclaimer {
+  margin: 0;
+  margin-top: 24px;
+  color: var(--color-subtle);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.account-creation-page__disclaimer a {
+  color: var(--color-progressive);
+  text-decoration: none;
+}
+
+.account-creation-page__disclaimer a:hover {
+  text-decoration: underline;
+}
+
+.account-creation-page__submit {
+  width: 100%;
+  margin-top: 16px;
+  justify-content: center;
 }
 
 .survey-page__panel--welcome,
@@ -1410,24 +2051,29 @@ function getQuizOptionState( optionKey ) {
 
 .survey-page__panel--welcome {
   gap: var(--spacing-300);
+  padding-top: 0;
 }
 
 .survey-page__hero-image {
   display: block;
-  width: 100%;
+  width: calc(100% + 32px);
   height: auto;
-  border: 1px solid var(--border-color-subtle);
-  border-radius: var(--border-radius-base);
-  background-color: var(--background-color-base);
+  margin-inline: -16px;
+  margin-top: 0;
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
   object-fit: cover;
 }
 
 .survey-page__panel--welcome .survey-page__copy {
-  margin-top: -28px;
+  margin-top: -8px;
 }
 
 .survey-page__panel--step {
+  min-height: calc(100vh - 54px);
   gap: 24px;
+  padding-bottom: 96px;
 }
 
 .survey-page__copy {
@@ -1453,13 +2099,24 @@ function getQuizOptionState( optionKey ) {
 
 .survey-page__lead,
 .survey-page__body,
-.homepage__meta,
 .module__body,
 .progression-item__description {
   margin: 0;
   color: var(--color-emphasized);
   font-size: 1rem;
   line-height: 1.5;
+}
+
+.survey-page__body--welcome {
+  font-size: 16px;
+  line-height: 22px;
+}
+
+.homepage__meta {
+  margin: 0;
+  color: var(--color-subtle);
+  font-size: 14px;
+  line-height: 20px;
 }
 
 .survey-page__lead {
@@ -1482,10 +2139,20 @@ function getQuizOptionState( optionKey ) {
 
 .survey-page__progress-bar-wrap {
   flex: 1 1 auto;
+  height: 8px;
 }
 
 .survey-page__progress-bar-wrap :deep(.cdx-progress-bar) {
   width: 100%;
+  height: 8px;
+}
+
+.survey-page__progress-bar-wrap :deep(.cdx-progress-bar__bar),
+.quiz-page__progress-block :deep(.cdx-progress-bar__bar) {
+  overflow: hidden;
+  border: 0;
+  box-shadow: none;
+  background-image: none;
 }
 
 .survey-page__progress-bar-wrap :deep(.cdx-progress-bar__bar),
@@ -1658,16 +2325,23 @@ function getQuizOptionState( optionKey ) {
 }
 
 .survey-page__footer-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: sticky;
+  position: fixed;
+  right: 0;
   bottom: 0;
+  left: 0;
   z-index: 1;
-  margin-top: auto;
   padding-top: 12px;
   padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   background-color: var(--background-color-neutral-subtle);
+}
+
+.survey-page__footer-nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 30rem;
+  margin: 0 auto;
+  padding: 0 16px;
 }
 
 .survey-page__nav-link--next {
@@ -1801,6 +2475,12 @@ function getQuizOptionState( optionKey ) {
   background-color: var(--border-color-success);
 }
 
+.progression-item--complete .progression-item__title,
+.progression-item--complete .progression-item__duration,
+.progression-item--complete .progression-item__description {
+  color: var(--color-placeholder);
+}
+
 .progression-item--active .progression-item__marker {
   background-color: var(--background-color-progressive);
   color: var(--color-inverted);
@@ -1814,6 +2494,10 @@ function getQuizOptionState( optionKey ) {
   padding-bottom: 24px;
 }
 
+.progression-item:last-child .progression-item__content {
+  padding-bottom: 0;
+}
+
 .progression-item__heading {
   display: flex;
   align-items: center;
@@ -1822,48 +2506,20 @@ function getQuizOptionState( optionKey ) {
 }
 
 .progression-item__status {
-  color: var(--color-icon-success);
-  font-size: 14px;
-  line-height: 22px;
-  padding-top: 0;
-  padding-bottom: 0;
+  display: none;
 }
 
 .progression-item__button {
   align-self: flex-start;
 }
 
-.homepage__see-all {
-  align-self: center;
-  position: relative;
-  z-index: 1;
-  margin-bottom: 0;
-  color: var(--color-emphasized);
-  pointer-events: auto;
-}
-
-.homepage__see-all-wrap {
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: flex-end;
-  height: 80px;
-  margin-top: -64px;
-  pointer-events: none;
-}
-
-.homepage__see-all-gradient {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 80px;
-  background: linear-gradient(180deg, rgb(255 255 255 / 0) 0%, rgb(255 255 255 / 0.95) 58%, rgb(255 255 255 / 1) 100%);
-}
-
 .module__mentor {
   display: flex;
   gap: var(--spacing-100);
+}
+
+.module--mentor {
+  border-color: var(--border-color-muted);
 }
 
 .module__mentor-avatar {
@@ -1892,11 +2548,18 @@ function getQuizOptionState( optionKey ) {
 
 .module__mentor-copy .module__body {
   margin-top: 4px;
+  color: var(--color-subtle);
+  font-size: 14px;
+  line-height: 20px;
 }
 
 .module__mentor-button {
   align-self: flex-start;
   margin-top: 8px;
+}
+
+.module__mentor-button:deep(.cdx-button) {
+  min-height: 32px;
 }
 
 .homepage__impact-grid {
@@ -1947,6 +2610,7 @@ function getQuizOptionState( optionKey ) {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  padding-bottom: 96px;
 }
 
 .quiz-page__header {
@@ -1991,6 +2655,7 @@ function getQuizOptionState( optionKey ) {
 
 .quiz-page__progress-block :deep(.cdx-progress-bar) {
   width: 100%;
+  height: 8px;
 }
 
 .quiz-page__panel {
@@ -2053,7 +2718,7 @@ function getQuizOptionState( optionKey ) {
   margin: 0;
   color: var(--color-emphasized);
   font-family: var(--font-family-heading-main);
-  font-size: 16px;
+  font-size: 18px;
   line-height: 22px;
 }
 
@@ -2149,22 +2814,23 @@ function getQuizOptionState( optionKey ) {
 }
 
 .quiz-page__footer-nav {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  padding-top: 12px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  background-color: var(--background-color-base);
+}
+
+.quiz-page__footer-nav-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  position: sticky;
-  bottom: 0;
-  z-index: 1;
-  margin-top: auto;
-  padding-top: 12px;
-  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-  background:
-    linear-gradient(
-      180deg,
-      rgb(255 255 255 / 0) 0%,
-      rgb(255 255 255 / 0.96) 24%,
-      rgb(255 255 255 / 1) 100%
-    );
+  max-width: 30rem;
+  margin: 0 auto;
+  padding: 0 16px;
 }
 
 .quiz-page__nav-link {
@@ -2185,7 +2851,7 @@ function getQuizOptionState( optionKey ) {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  min-height: 100%;
+  min-height: calc(100vh - 48px);
   background-color: var(--background-color-neutral-subtle);
 }
 
@@ -2193,16 +2859,31 @@ function getQuizOptionState( optionKey ) {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding-bottom: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding-right: 16px;
+  padding-left: 16px;
+  padding-top: 0;
+  padding-bottom: 0;
   border-bottom: 1px solid var(--border-color-subtle);
+  background-color: var(--background-color-base);
+}
+
+.suggested-edits-page__filters {
+  margin-inline-start: auto;
+  color: var(--color-base);
+  font-size: 24px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
 }
 
 .suggested-edits-page__header-title {
   margin: 0;
   color: var(--color-emphasized);
   font-family: var(--font-family-system-sans);
-  font-size: 20px;
-  line-height: 30px;
+  font-size: 18px;
+  line-height: 22px;
   font-weight: var(--font-weight-bold);
 }
 
@@ -2220,25 +2901,38 @@ function getQuizOptionState( optionKey ) {
 }
 
 .suggested-edits-page__viewport {
-  overflow: hidden;
-  margin-inline: -12px;
-  padding-inline: 12px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  margin-inline: -16px;
+  padding-inline: 16px;
+  padding-bottom: 16px;
 }
 
 .suggested-edits-page__track {
   display: flex;
   gap: 16px;
-  transition: transform 280ms ease;
+  align-items: stretch;
+  width: max-content;
 }
 
 .suggested-edit-card {
-  width: 88%;
-  flex: 0 0 88%;
+  display: flex;
+  flex-direction: column;
+  width: calc(100vw - 88px);
+  max-width: 30rem;
+  flex: 0 0 calc(100vw - 88px);
+  height: calc(100vh - 48px - 20px - 16px - 48px);
+  min-height: calc(100vh - 48px - 20px - 16px - 48px);
   border: 1px solid var(--border-color-subtle);
   border-radius: var(--border-radius-base);
   background-color: var(--background-color-base);
   overflow: hidden;
   opacity: 0.72;
+  scroll-snap-align: start;
   transition:
     transform 260ms ease,
     opacity 260ms ease;
@@ -2258,6 +2952,9 @@ function getQuizOptionState( optionKey ) {
 }
 
 .suggested-edit-card__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
   padding: 12px;
 }
 
@@ -2269,6 +2966,7 @@ function getQuizOptionState( optionKey ) {
   border: 1px solid var(--border-color-subtle);
   border-radius: var(--border-radius-base);
   object-fit: cover;
+  background-color: var(--background-color-neutral);
 }
 
 .suggested-edit-card__copy {
@@ -2300,9 +2998,22 @@ function getQuizOptionState( optionKey ) {
   color: var(--color-base);
   font-size: 16px;
   line-height: 22px;
+  white-space: normal;
+}
+
+.suggested-edit-card__link,
+.suggested-edit-card__excerpt :deep(a) {
+  color: var(--color-progressive);
+  text-decoration: none;
+}
+
+.suggested-edit-card__highlight {
+  border-radius: 2px;
+  background-color: rgb(217 226 255 / 80%);
 }
 
 .suggested-edit-card__panel {
+  flex-shrink: 0;
   padding: 12px;
 }
 
@@ -2348,6 +3059,7 @@ function getQuizOptionState( optionKey ) {
   color: var(--color-subtle);
   font-size: 24px;
   line-height: 1;
+  padding: 0 8px;
 }
 
 .suggested-edit-card__success-row {
@@ -2403,12 +3115,23 @@ function getQuizOptionState( optionKey ) {
 .module-card-link:deep(.cdx-card) {
   border-color: var(--border-color-interactive);
   border-radius: var(--border-radius-base);
-  background-color: var(--background-color-neutral-subtle) !important;
+  background-color: var(--background-color-base) !important;
+}
+
+.module-card-link:deep(.cdx-card__wrapper),
+.module-card-link:deep(.cdx-card__text) {
+  background-color: var(--background-color-base) !important;
 }
 
 .module-card-link:deep(.cdx-card__text__title),
 .module-card-link:deep(.cdx-card__text__description) {
   background-color: transparent;
+}
+
+.module-card-link:deep(.cdx-card__text__description) {
+  color: var(--color-subtle);
+  font-size: 14px;
+  line-height: 20px;
 }
 
 .progression-item__status :deep(.cdx-icon) {
@@ -2691,6 +3414,12 @@ function getQuizOptionState( optionKey ) {
     line-height: 2.25rem;
   }
 
+  .survey-page__footer-nav-inner,
+  .quiz-page__footer-nav-inner {
+    max-width: 33rem;
+    padding: 0 var(--spacing-100);
+  }
+
   .article-page {
     max-width: 100%;
   }
@@ -2723,6 +3452,11 @@ function getQuizOptionState( optionKey ) {
     bottom: 24px;
     left: auto;
     width: min(420px, calc(100vw - 48px));
+  }
+
+  .suggested-edit-card {
+    width: min(30rem, calc(100vw - 120px));
+    flex-basis: min(30rem, calc(100vw - 120px));
   }
 }
 </style>
