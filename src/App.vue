@@ -33,6 +33,7 @@ const videoCompleted = ref( false );
 const hasContributorPath = ref( false );
 const showContributorDialog = ref( false );
 const showWelcomeSuccessSheet = ref( false );
+const showContributorBadgeGlow = ref( false );
 let articleScrollTimeout = null;
 
 const selectedReason = ref( '' );
@@ -990,6 +991,33 @@ const rankedSuggestedEdits = computed( () =>
 const remainingSuggestedEdits = computed(
   () => rankedSuggestedEdits.value.filter( ( suggestion ) => !suggestion.resolved )
 );
+const renderedSuggestedEdits = computed( () => {
+  const items = remainingSuggestedEdits.value;
+
+  if ( items.length <= 1 ) {
+    return items.map( ( suggestion ) => ( {
+      key: suggestion.key,
+      suggestion
+    } ) );
+  }
+
+  return [
+    {
+      key: `${items[ items.length - 1 ].key}-clone-start`,
+      suggestion: items[ items.length - 1 ],
+      isClone: true
+    },
+    ...items.map( ( suggestion ) => ( {
+      key: suggestion.key,
+      suggestion
+    } ) ),
+    {
+      key: `${items[ 0 ].key}-clone-end`,
+      suggestion: items[ 0 ],
+      isClone: true
+    }
+  ];
+} );
 const currentSuggestedEdit = computed(
   () => remainingSuggestedEdits.value[ currentSuggestedEditIndex.value ] || null
 );
@@ -1223,7 +1251,7 @@ function goToSuggestedEdits() {
   currentView.value = 'suggested-edits';
   requestAnimationFrame( () => {
     if ( suggestedEditsViewport.value ) {
-      suggestedEditsViewport.value.scrollLeft = 0;
+      scrollToRenderedSuggestion( remainingSuggestedEdits.value.length > 1 ? 1 : 0 );
     }
   } );
 }
@@ -1280,7 +1308,31 @@ function handleSuggestedEditsScroll( event ) {
   const styles = window.getComputedStyle( viewport.querySelector( '.suggested-edits-page__track' ) );
   const gap = Number.parseFloat( styles.columnGap || styles.gap || '0' );
   const cardWidth = firstCard.getBoundingClientRect().width + gap;
-  currentSuggestedEditIndex.value = Math.max( 0, Math.round( viewport.scrollLeft / cardWidth ) );
+  const rawIndex = Math.round( viewport.scrollLeft / cardWidth );
+  const itemCount = remainingSuggestedEdits.value.length;
+
+  if ( itemCount <= 1 ) {
+    currentSuggestedEditIndex.value = 0;
+    return;
+  }
+
+  if ( rawIndex <= 0 ) {
+    currentSuggestedEditIndex.value = itemCount - 1;
+    requestAnimationFrame( () => {
+      scrollToRenderedSuggestion( itemCount );
+    } );
+    return;
+  }
+
+  if ( rawIndex >= itemCount + 1 ) {
+    currentSuggestedEditIndex.value = 0;
+    requestAnimationFrame( () => {
+      scrollToRenderedSuggestion( 1 );
+    } );
+    return;
+  }
+
+  currentSuggestedEditIndex.value = Math.max( 0, Math.min( itemCount - 1, rawIndex - 1 ) );
 }
 
 function handleArticleScroll() {
@@ -1371,6 +1423,28 @@ function maybePromoteToContributorPath() {
     recentlyCompletedTaskKey.value = '';
     showContributorDialog.value = true;
   }
+}
+
+function scrollToRenderedSuggestion( renderedIndex ) {
+  const viewport = suggestedEditsViewport.value;
+  const firstCard = viewport?.querySelector( '.suggested-edit-card' );
+
+  if ( !viewport || !firstCard ) {
+    return;
+  }
+
+  const styles = window.getComputedStyle( viewport.querySelector( '.suggested-edits-page__track' ) );
+  const gap = Number.parseFloat( styles.columnGap || styles.gap || '0' );
+  const cardWidth = firstCard.getBoundingClientRect().width + gap;
+  viewport.scrollLeft = renderedIndex * cardWidth;
+}
+
+function dismissContributorSheet() {
+  showContributorDialog.value = false;
+  showContributorBadgeGlow.value = true;
+  setTimeout( () => {
+    showContributorBadgeGlow.value = false;
+  }, 1400 );
 }
 </script>
 
@@ -1883,48 +1957,48 @@ function maybePromoteToContributorPath() {
             class="suggested-edits-page__track"
           >
             <article
-              v-for="suggestion in remainingSuggestedEdits"
-              :key="suggestion.key"
+              v-for="item in renderedSuggestedEdits"
+              :key="item.key"
               class="suggested-edit-card"
               :class="{
-                'suggested-edit-card--active': suggestion.key === currentSuggestedEdit?.key,
-                'suggested-edit-card--completing': suggestion.resolving === 'complete',
-                'suggested-edit-card--dismissing': suggestion.resolving === 'dismiss'
+                'suggested-edit-card--active': item.suggestion.key === currentSuggestedEdit?.key,
+                'suggested-edit-card--completing': item.suggestion.resolving === 'complete',
+                'suggested-edit-card--dismissing': item.suggestion.resolving === 'dismiss'
               }"
             >
               <div class="suggested-edit-card__body">
                 <img
                   class="suggested-edit-card__thumbnail"
-                  :src="suggestion.articleImage"
-                  :alt="suggestion.articleTitle"
+                  :src="item.suggestion.articleImage"
+                  :alt="item.suggestion.articleTitle"
                 >
                 <div class="suggested-edit-card__copy">
                   <h2 class="suggested-edit-card__title">
-                    {{ suggestion.articleTitle }}
+                    {{ item.suggestion.articleTitle }}
                   </h2>
                   <p class="suggested-edit-card__description">
-                    {{ suggestion.articleDescription }}
+                    {{ item.suggestion.articleDescription }}
                   </p>
                 </div>
 
                 <div
                   class="suggested-edit-card__excerpt"
-                  v-html="suggestion.articleSnippetHtml"
+                  v-html="item.suggestion.articleSnippetHtml"
                 ></div>
               </div>
 
               <div
-                v-if="suggestion.resolving === 'complete'"
+                v-if="item.suggestion.resolving === 'complete'"
                 class="suggested-edit-card__panel suggested-edit-card__panel--success"
               >
                 <div class="suggested-edit-card__success-row">
                   <span class="suggested-edit-card__success-icon">
                     <CdxIcon :icon="cdxIconCheck" />
                   </span>
-                  <strong>{{ suggestion.successTitle }}</strong>
+                  <strong>{{ item.suggestion.successTitle }}</strong>
                 </div>
                 <p class="suggested-edit-card__panel-description">
-                  {{ suggestion.successMessage }}
+                  {{ item.suggestion.successMessage }}
                 </p>
               </div>
 
@@ -1933,21 +2007,21 @@ function maybePromoteToContributorPath() {
                 class="suggested-edit-card__panel suggested-edit-card__panel--task"
               >
                 <h3 class="suggested-edit-card__panel-title">
-                  {{ suggestion.taskTitle }}
+                  {{ item.suggestion.taskTitle }}
                 </h3>
                 <p class="suggested-edit-card__panel-description">
-                  {{ suggestion.taskDescription }}
+                  {{ item.suggestion.taskDescription }}
                 </p>
-                <p v-if="suggestion.question" class="suggested-edit-card__question">
-                  {{ suggestion.question }}
+                <p v-if="item.suggestion.question" class="suggested-edit-card__question">
+                  {{ item.suggestion.question }}
                 </p>
 
                 <div class="suggested-edit-card__actions">
-                  <CdxButton @click="resolveSuggestedEdit( 'complete', suggestion.key )">
-                    {{ suggestion.primaryLabel }}
+                  <CdxButton @click="resolveSuggestedEdit( 'complete', item.suggestion.key )">
+                    {{ item.suggestion.primaryLabel }}
                   </CdxButton>
-                  <CdxButton @click="resolveSuggestedEdit( 'dismiss', suggestion.key )">
-                    {{ suggestion.secondaryLabel }}
+                  <CdxButton @click="resolveSuggestedEdit( 'dismiss', item.suggestion.key )">
+                    {{ item.suggestion.secondaryLabel }}
                   </CdxButton>
                   <button class="suggested-edit-card__menu" type="button" aria-label="More actions">
                     ...
@@ -2084,7 +2158,10 @@ function maybePromoteToContributorPath() {
             {{ userName }}
           </h1>
           <div class="homepage__meta">
-            <CdxInfoChip :status="profileLevelStatus">
+            <CdxInfoChip
+              :status="profileLevelStatus"
+              :class="{ 'homepage__level-chip--glow': showContributorBadgeGlow }"
+            >
               {{ profileLevelLabel }}
             </CdxInfoChip>
             <span>{{ profileJoinedText }}</span>
@@ -2266,7 +2343,7 @@ function maybePromoteToContributorPath() {
           class="contributor-sheet__overlay"
           type="button"
           aria-label="Close contributor message"
-          @click="showContributorDialog = false"
+          @click="dismissContributorSheet"
         ></button>
 
         <div class="contributor-sheet__panel">
@@ -2291,7 +2368,7 @@ function maybePromoteToContributorPath() {
               action="progressive"
               weight="primary"
               size="medium"
-              @click="showContributorDialog = false"
+              @click="dismissContributorSheet"
             >
               Got it
             </CdxButton>
@@ -2499,6 +2576,10 @@ function maybePromoteToContributorPath() {
   color: var(--color-subtle);
   font-size: 14px;
   line-height: 20px;
+}
+
+.homepage__level-chip--glow:deep(.cdx-info-chip) {
+  animation: homepage-level-chip-glow 900ms ease;
 }
 
 .survey-page__lead {
@@ -3563,8 +3644,6 @@ function maybePromoteToContributorPath() {
   overflow-y: hidden;
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
-  margin-inline: -16px;
-  padding-inline: 16px;
   padding-bottom: 16px;
 }
 
@@ -3574,6 +3653,7 @@ function maybePromoteToContributorPath() {
   align-items: stretch;
   width: max-content;
   padding-left: 0;
+  padding-right: 0;
 }
 
 .suggested-edit-card {
@@ -3665,8 +3745,13 @@ function maybePromoteToContributorPath() {
 }
 
 .suggested-edit-card__highlight {
-  border-radius: 2px;
-  background-color: rgb(217 226 255 / 80%);
+  background-image: linear-gradient(
+    to top,
+    rgb(217 226 255 / 100%) 0,
+    rgb(217 226 255 / 100%) 38%,
+    transparent 38%,
+    transparent 100%
+  );
 }
 
 .suggested-edit-card__panel {
@@ -3734,6 +3819,10 @@ function maybePromoteToContributorPath() {
   height: 28px;
   border-radius: 50%;
   background-color: var(--color-icon-success);
+  color: var(--color-inverted);
+}
+
+.suggested-edit-card__success-icon :deep(.cdx-icon) {
   color: var(--color-inverted);
 }
 
@@ -3837,6 +3926,23 @@ function maybePromoteToContributorPath() {
   }
 
   100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes homepage-level-chip-glow {
+  0% {
+    box-shadow: 0 0 0 0 rgb(54 102 216 / 0%);
+    transform: scale(1);
+  }
+
+  35% {
+    box-shadow: 0 0 0 6px rgb(54 102 216 / 16%);
+    transform: scale(1.04);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgb(54 102 216 / 0%);
     transform: scale(1);
   }
 }
