@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { CdxButton, CdxCard, CdxField, CdxIcon, CdxProgressBar, CdxTextInput } from '@wikimedia/codex';
+import { CdxButton, CdxCard, CdxCheckbox, CdxField, CdxIcon, CdxInfoChip, CdxProgressBar, CdxTextInput } from '@wikimedia/codex';
 import {
   cdxIconAdd,
   cdxIconArrowNext,
@@ -29,11 +29,15 @@ const currentSuggestedEditIndex = ref( 0 );
 const recentlyCompletedTaskKey = ref( '' );
 const showArticlePathEntry = ref( false );
 const suggestedEditsViewport = ref( null );
+const videoCompleted = ref( false );
+const hasContributorPath = ref( false );
+const showContributorDialog = ref( false );
 let articleScrollTimeout = null;
 
 const selectedReason = ref( '' );
 const selectedTopics = ref( [] );
-const selectedLanguages = ref( [ 'English', 'Spanish' ] );
+const selectedLanguages = ref( [ 'English' ] );
+const isInterestedInTranslation = ref( false );
 const email = ref( '' );
 const selectedQuizAnswers = ref( {} );
 const accountUsername = ref( 'CaptainBird' );
@@ -42,8 +46,14 @@ const accountConfirmPassword = ref( 'Wikipedia1234' );
 
 const userName = 'CaptainBird';
 const userInitials = 'Ca';
-const wikiMinuteWelcomeImage =
-  'https://commons.wikimedia.org/wiki/Special:Redirect/file/A%20Wiki%20Minute%20-%20extract%20021.jpg';
+const welcomeSurveyHeroImage =
+  'https://commons.wikimedia.org/wiki/Special:Redirect/file/Wikipedia%2020%20cover%20puzzle%20globe%20blue.png';
+const surveySuccessHeroImage =
+  'https://commons.wikimedia.org/wiki/Special:Redirect/file/Wikipedia%2020%20cover%20puzzle%20globe%20blue.png';
+const wikiMinuteVideoSource =
+  'https://commons.wikimedia.org/wiki/Special:Redirect/file/How_does_Wikipedia_work_%E2%80%93_A_WIKI_MINUTE_16-9.webm';
+const contributorDialogImage =
+  'https://commons.wikimedia.org/wiki/Special:Redirect/file/WYiR_Puzzle_5.png';
 const isabellaSuggestedEditImage =
   'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7f/Portrait_of_Isabella_I_of_Castile%2C_aged_44.jpg/320px-Portrait_of_Isabella_I_of_Castile%2C_aged_44.jpg';
 const parisSuggestedEditImage =
@@ -66,46 +76,86 @@ const articleSections = [
 
 const reasonOptions = [
   {
-    key: 'fix',
-    title: 'Fix a typo',
-    description: 'To fix a typo or error in a Wikipedia article'
+    key: 'never',
+    title: "I've never edited",
+    description: ''
   },
   {
-    key: 'share',
-    title: 'Share what I know',
-    description: 'To add or change information to a Wikipedia article'
+    key: 'couple',
+    title: "I've made a couple of edits",
+    description: ''
   },
   {
-    key: 'image',
-    title: 'Add an image',
-    description: 'To add a photo or image to a Wikipedia article'
-  },
-  {
-    key: 'class-project',
-    title: "I'm here for a class or project",
-    description: "I'm participating in a program, class, or event"
-  },
-  {
-    key: 'exploring',
-    title: 'Just exploring',
-    description: 'Not sure yet — I want to see how this works'
-  },
-  {
-    key: 'something-else',
-    title: 'Something else',
+    key: 'unknown',
+    title: 'I don’t know',
     description: ''
   }
 ];
 
-const topicOptions = [
-  { key: 'reference', title: 'Reference', description: 'Description' },
-  { key: 'culture', title: 'Culture', description: 'Description' },
-  { key: 'geography', title: 'Geography', description: 'Description' },
-  { key: 'history', title: 'History', description: 'Description' },
-  { key: 'human-activities-1', title: 'Human activities', description: 'Description' },
-  { key: 'human-activities-2', title: 'Human activities', description: 'Description' },
-  { key: 'mathematics', title: 'Mathematics', description: 'Description' },
-  { key: 'nature', title: 'Nature', description: 'Description' }
+const topicCategories = [
+  {
+    key: 'culture',
+    title: 'Culture',
+    topics: [
+      'Architecture',
+      'Art',
+      'Comics & anime',
+      'Entertainment',
+      'Fashion',
+      'Literature',
+      'Music',
+      'Performing arts',
+      'Sports',
+      'TV/Film',
+      'Video games'
+    ]
+  },
+  {
+    key: 'history-society',
+    title: 'History and Society',
+    topics: [
+      'Biography (all)',
+      'Biography (women)',
+      'Business & economics',
+      'Education',
+      'Food & drink',
+      'History',
+      'Military & warfare',
+      'Philosophy & religion',
+      'Politics & government',
+      'Society',
+      'Transportation'
+    ]
+  },
+  {
+    key: 'stem',
+    title: 'Science, Technology, and Math',
+    topics: [
+      'Biology',
+      'Chemistry',
+      'Computers & internet',
+      'Earth & environment',
+      'Engineering',
+      'General science',
+      'Mathematics',
+      'Medicine & health',
+      'Physics',
+      'Technology'
+    ]
+  },
+  {
+    key: 'regions',
+    title: 'Regions',
+    topics: [
+      'Africa',
+      'Asia',
+      'Central America',
+      'Europe',
+      'North America',
+      'Oceania',
+      'South America'
+    ]
+  }
 ];
 
 const availableLanguages = [ 'English', 'Spanish', 'French', 'Catalan', 'German' ];
@@ -128,12 +178,12 @@ const quizSteps = [
       {
         key: 'a',
         label: 'A',
-        text: 'Yes — it\'s a well-known fact about Michael Jordan.'
+        text: 'Yes, it\'s a well-known fact.'
       },
       {
         key: 'b',
         label: 'B',
-        text: 'No — it\'s an opinion. Wikipedia needs verifiable facts, not judgments.'
+        text: 'No, it\'s an opinion.'
       },
       {
         key: 'c',
@@ -158,12 +208,12 @@ const quizSteps = [
       {
         key: 'a',
         label: 'A',
-        text: 'No — it\'s an opinion. Wikipedia needs verifiable facts, not judgments.'
+        text: 'No, it\'s an opinion.'
       },
       {
         key: 'b',
         label: 'B',
-        text: 'Yes — it\'s a well-known fact about Rosalía.'
+        text: 'Yes, it\'s a well-known fact.'
       },
       {
         key: 'c',
@@ -189,12 +239,12 @@ const quizSteps = [
       {
         key: 'a',
         label: 'A',
-        text: 'Yes — if it\'s accurate and well-written, it improves the article.'
+        text: 'Yes, if it\'s accurate and well-written, it improves the article.'
       },
       {
         key: 'b',
         label: 'B',
-        text: 'No — copying copyrighted text violates Wikipedia\'s free content policy.'
+        text: 'No, copying copyrighted text violates Wikipedia\'s policy.'
       },
       {
         key: 'c',
@@ -256,7 +306,7 @@ const quizSteps = [
       {
         key: 'b',
         label: 'B',
-        text: 'No — good content shouldn\'t be removed over formatting. Fix the format, keep the content.'
+        text: 'No, good content shouldn\'t be removed over formatting.'
       },
       {
         key: 'c',
@@ -267,53 +317,107 @@ const quizSteps = [
   }
 ];
 
-const progressionTasks = ref( [
-  {
-    key: 'welcome-survey',
-    title: 'Complete Welcome Survey',
-    description: 'Respond four quick questions to personalize your experience',
-    duration: '1 min',
-    buttonLabel: 'Complete survey',
-    action: 'survey',
-    completed: false
-  },
-  {
-    key: 'wiki-minute',
-    title: 'Watch a Wiki Minute video',
-    description: '60-second intro to how Wikipedia is written, sourced, and edited',
-    duration: '1 min',
-    buttonLabel: 'Watch video',
-    action: 'video',
-    completed: false
-  },
-  {
-    key: 'five-pillars',
-    title: 'Five Pillars quiz',
-    description: 'Review the core principles that guide editing on Wikipedia',
-    duration: '15 min',
-    buttonLabel: 'Review pillars',
-    action: 'quiz',
-    completed: false
-  },
-  {
-    key: 'first-edit',
-    title: 'First suggested edit',
-    description: 'A small and easy edit picked for you',
-    duration: '5 min',
-    buttonLabel: 'See suggested edits',
-    action: 'edit',
-    completed: false
-  },
-  {
-    key: 'enrich-article',
-    title: 'Enrich an article',
-    description: 'Choose one way to improve an article: citation, image, or link',
-    duration: '15 min',
-    buttonLabel: 'Enrich article',
-    action: 'enrich',
-    completed: false
-  }
-] );
+function createBeginnerTasks() {
+  return [
+    {
+      key: 'welcome-survey',
+      title: 'Complete Welcome Survey',
+      description: 'Respond four quick questions to personalize your experience',
+      duration: '1 min',
+      buttonLabel: 'Complete survey',
+      action: 'survey',
+      completed: false
+    },
+    {
+      key: 'wiki-minute',
+      title: 'Watch a Wiki Minute video',
+      description: '60-second intro to how Wikipedia is written, sourced, and edited',
+      duration: '1 min',
+      buttonLabel: 'Watch video',
+      action: 'video',
+      completed: false
+    },
+    {
+      key: 'first-edit',
+      title: 'First suggested edit',
+      description: 'A small and easy edit picked for you',
+      duration: '5 min',
+      buttonLabel: 'See suggested edits',
+      action: 'edit',
+      completed: false
+    },
+    {
+      key: 'five-pillars',
+      title: 'Five Pillars quiz',
+      description: 'Review the core principles that guide editing on Wikipedia',
+      duration: '15 min',
+      buttonLabel: 'Review pillars',
+      action: 'quiz',
+      completed: false
+    },
+    {
+      key: 'enrich-article',
+      title: 'Enrich an article',
+      description: 'Choose one way to improve an article: citation, image, or link',
+      duration: '15 min',
+      buttonLabel: 'Enrich article',
+      action: 'enrich',
+      completed: false
+    }
+  ];
+}
+
+function createContributorTasks() {
+  return [
+    {
+      key: 'create-user-page',
+      title: 'Create user page',
+      description: 'Description lorem ipsum',
+      duration: '10 min',
+      buttonLabel: 'Create page',
+      action: 'contributor',
+      completed: false
+    },
+    {
+      key: 'talk-page-edit',
+      title: 'First talk page edit',
+      description: 'Description lorem ipsum',
+      duration: '5 min',
+      buttonLabel: 'Open talk page',
+      action: 'contributor',
+      completed: false
+    },
+    {
+      key: 'wiki-event',
+      title: 'Join a wiki event',
+      description: 'Description lorem ipsum',
+      duration: '5 min',
+      buttonLabel: 'Find event',
+      action: 'contributor',
+      completed: false
+    },
+    {
+      key: 'ten-suggestions',
+      title: 'Complete 10 suggestions',
+      description: 'Description lorem ipsum',
+      duration: '15 min',
+      buttonLabel: 'See suggestions',
+      action: 'contributor',
+      completed: false
+    },
+    {
+      key: 'three-article-edits',
+      title: 'Complete 3 article edits',
+      description: 'Description lorem ipsum',
+      duration: '30 min',
+      buttonLabel: 'Start editing',
+      action: 'contributor',
+      completed: false
+    }
+  ];
+}
+
+const progressionTasks = ref( createBeginnerTasks() );
 
 const editsCount = ref( 0 );
 const thanksCount = ref( 0 );
@@ -467,7 +571,8 @@ function buildSuggestedEdit( config ) {
     articleImage: config.articleImage,
     articleSnippetHtml: config.articleSnippetHtml,
     resolvedSnippetHtml: config.resolvedSnippetHtml || config.articleSnippetHtml,
-    question: config.question || ''
+    question: config.question || '',
+    topicTags: config.topicTags || []
   };
 }
 
@@ -483,6 +588,8 @@ const suggestedEdits = ref( [
       'Isabella and Ferdinand are known for being the first monarchs to be referred to as the queen and king of <a href="#" class="suggested-edit-card__link"><span class="suggested-edit-card__highlight">Spain</span></a>, respectively. Their actions included completion of the <a href="#" class="suggested-edit-card__link">Reconquista</a>, the <a href="#" class="suggested-edit-card__link">Alhambra Decree</a> which ordered the <a href="#" class="suggested-edit-card__link">mass expulsion of Jews</a> from <a href="#" class="suggested-edit-card__link"><span class="suggested-edit-card__highlight">Spain</span></a>, initiating the <a href="#" class="suggested-edit-card__link">Spanish Inquisition</a>, financing Christopher Columbus’s 1492 voyage to the New World.',
     resolvedSnippetHtml:
       'Isabella and Ferdinand are known for being the first monarchs to be referred to as the queen and king of <a href="#" class="suggested-edit-card__link">Spain</a>, respectively. Their actions included completion of the <a href="#" class="suggested-edit-card__link">Reconquista</a>, the <a href="#" class="suggested-edit-card__link">Alhambra Decree</a> which ordered the <a href="#" class="suggested-edit-card__link">mass expulsion of Jews</a> from Spain, initiating the <a href="#" class="suggested-edit-card__link">Spanish Inquisition</a>, financing Christopher Columbus’s 1492 voyage to the New World.'
+    ,
+    topicTags: [ 'History', 'Biography (women)', 'Europe' ]
   } ),
   buildSuggestedEdit( {
     key: 'isabella-uk-spelling',
@@ -495,7 +602,8 @@ const suggestedEdits = ref( [
       'Girón. Desiring to depose Henry and establish Infante Alfonso on the throne, Pacheco and his followers circulated <span class="suggested-edit-card__highlight">rumors</span> that Infanta Joanna was actually the child of Beltrán de la Cueva.',
     resolvedSnippetHtml:
       'Girón. Desiring to depose Henry and establish Infante Alfonso on the throne, Pacheco and his followers circulated <span class="suggested-edit-card__highlight">rumours</span> that Infanta Joanna was actually the child of Beltrán de la Cueva.',
-    question: 'Replace “rumors” with “rumours”?'
+    question: 'Replace “rumors” with “rumours”?',
+    topicTags: [ 'History', 'Biography (women)', 'Europe' ]
   } ),
   buildSuggestedEdit( {
     key: 'paris-specific-link',
@@ -508,6 +616,8 @@ const suggestedEdits = ref( [
       'Paris developed from a Celtic settlement on the <a href="#" class="suggested-edit-card__link"><span class="suggested-edit-card__highlight">Cité</span></a> into a major political, cultural, and commercial center of Europe. Over centuries the city expanded on both banks of the Seine.',
     resolvedSnippetHtml:
       'Paris developed from a Celtic settlement on the <a href="#" class="suggested-edit-card__link">Île de la Cité</a> into a major political, cultural, and commercial center of Europe. Over centuries the city expanded on both banks of the Seine.'
+    ,
+    topicTags: [ 'Architecture', 'Europe', 'History' ]
   } ),
   buildSuggestedEdit( {
     key: 'ada-citation',
@@ -644,15 +754,16 @@ const suggestedEdits = ref( [
       'King was an inspirational figure whose universally beloved speeches flawlessly transformed the soul of a nation in every possible way.'
   } ),
   buildSuggestedEdit( {
-    key: 'frida-citation',
+    key: 'picasso-citation',
     sequenceNumber: 16,
     template: 'addCitation',
-    articleTitle: 'Frida Kahlo',
-    articleDescription: 'Mexican painter',
-    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/1/1f/Frida_Kahlo%2C_by_Guillermo_Kahlo.jpg',
+    articleTitle: 'Pablo Picasso',
+    articleDescription: 'Spanish painter, sculptor, and printmaker',
+    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/9/98/Pablo_picasso_1.jpg',
     articleSnippetHtml:
-      'Her work became internationally recognized in the decades after her death and influenced later feminist art movements.',
-    question: 'Add a citation to support this statement?'
+      'Picasso’s Blue Period had a strong influence on the development of modern European painting in the early 20th century.',
+    question: 'Add a citation to support this statement?',
+    topicTags: [ 'Art', 'Europe', 'Biography (all)' ]
   } ),
   buildSuggestedEdit( {
     key: 'rome-specific-link',
@@ -848,6 +959,9 @@ const currentTaskNumber = computed( () => currentTaskIndex.value + 1 );
 const activeProgressTask = computed(
   () => ( currentTaskIndex.value >= 0 ? progressionTasks.value[ currentTaskIndex.value ] : null )
 );
+const profileLevelLabel = computed( () => ( hasContributorPath.value ? 'Contributor' : 'Beginner' ) );
+const profileLevelStatus = computed( () => ( hasContributorPath.value ? 'progressive' : 'subtle' ) );
+const profileJoinedText = computed( () => ( hasContributorPath.value ? 'Joined 7 days ago' : 'Joined today' ) );
 const shouldCollapseProgression = computed( () => false );
 const visibleTasks = computed( () => progressionTasks.value );
 const currentQuizAnswer = computed(
@@ -856,8 +970,24 @@ const currentQuizAnswer = computed(
 const currentQuizAnswerIsCorrect = computed(
   () => currentQuizAnswer.value === currentQuizStep.value.correctKey
 );
+const rankedSuggestedEdits = computed( () =>
+  suggestedEdits.value
+    .map( ( suggestion, index ) => ( {
+      suggestion,
+      index,
+      score: suggestion.topicTags.filter( ( tag ) => selectedTopics.value.includes( tag ) ).length
+    } ) )
+    .sort( ( a, b ) => {
+      if ( b.score !== a.score ) {
+        return b.score - a.score;
+      }
+
+      return a.index - b.index;
+    } )
+    .map( ( item ) => item.suggestion )
+);
 const remainingSuggestedEdits = computed(
-  () => suggestedEdits.value.filter( ( suggestion ) => !suggestion.resolved )
+  () => rankedSuggestedEdits.value.filter( ( suggestion ) => !suggestion.resolved )
 );
 const currentSuggestedEdit = computed(
   () => remainingSuggestedEdits.value[ currentSuggestedEditIndex.value ] || null
@@ -880,7 +1010,7 @@ const currentSurveyQuestionNumber = computed( () => {
   }
 } );
 const shouldShowChromeFooter = computed(
-  () => ![ 'signup', 'survey', 'quiz', 'suggested-edits' ].includes( currentView.value )
+  () => ![ 'signup', 'survey', 'survey-success', 'quiz', 'suggested-edits' ].includes( currentView.value )
 );
 const shouldShowChromeSiteHeader = computed(
   () => currentView.value !== 'suggested-edits'
@@ -911,7 +1041,7 @@ const canAdvanceSurvey = computed( () => {
     case 'reason':
       return Boolean( selectedReason.value );
     case 'topics':
-      return selectedTopics.value.length >= 2;
+      return selectedTopics.value.length >= 4;
     case 'languages':
       return selectedLanguages.value.length > 0;
     case 'email':
@@ -978,6 +1108,24 @@ function toggleTopic( key ) {
   selectedTopics.value = [ ...selectedTopics.value, key ];
 }
 
+function toggleGroupedTopic( topic ) {
+  toggleTopic( topic );
+}
+
+function isTopicCategoryFullySelected( category ) {
+  return category.topics.every( ( topic ) => selectedTopics.value.includes( topic ) );
+}
+
+function selectAllTopicsInCategory( category ) {
+  const nextTopics = new Set( selectedTopics.value );
+
+  category.topics.forEach( ( topic ) => {
+    nextTopics.add( topic );
+  } );
+
+  selectedTopics.value = [ ...nextTopics ];
+}
+
 function removeLanguage( language ) {
   selectedLanguages.value = selectedLanguages.value.filter( ( item ) => item !== language );
 }
@@ -998,9 +1146,14 @@ function skipSurvey() {
 }
 
 function completeSurvey() {
-  progressionTasks.value[ 0 ].completed = true;
+  markTaskCompleted( 'welcome-survey' );
   resumeSurveyStepIndex.value = 1;
-  currentView.value = 'home';
+  currentView.value = 'survey-success';
+}
+
+function reviseSurveyResponses() {
+  currentSurveyStepIndex.value = 1;
+  currentView.value = 'survey';
 }
 
 function completeCurrentTask() {
@@ -1024,18 +1177,18 @@ function completeCurrentTask() {
     return;
   }
 
+  if ( task.action === 'video' ) {
+    videoCompleted.value = false;
+    currentView.value = 'video';
+    return;
+  }
+
   if ( task.action === 'edit' ) {
     goToSuggestedEdits();
     return;
   }
 
-  task.completed = true;
-  recentlyCompletedTaskKey.value = task.key;
-  setTimeout( () => {
-    if ( recentlyCompletedTaskKey.value === task.key ) {
-      recentlyCompletedTaskKey.value = '';
-    }
-  }, 550 );
+  markTaskCompleted( task.key );
   if ( task.action === 'enrich' ) {
     editsCount.value += 4;
     thanksCount.value += 2;
@@ -1071,6 +1224,11 @@ function goToSuggestedEdits() {
   } );
 }
 
+function handleWikiMinuteEnded() {
+  videoCompleted.value = true;
+  markTaskCompleted( 'wiki-minute' );
+}
+
 function resolveSuggestedEdit( mode, suggestionKey ) {
   const suggestion = currentSuggestedEdit.value;
 
@@ -1084,17 +1242,9 @@ function resolveSuggestedEdit( mode, suggestionKey ) {
   }
 
   if ( mode === 'complete' && !progressionTasks.value.find( ( task ) => task.key === 'first-edit' )?.completed ) {
-    progressionTasks.value = progressionTasks.value.map( ( task ) =>
-      task.key === 'first-edit' ? { ...task, completed: true } : task
-    );
-    recentlyCompletedTaskKey.value = 'first-edit';
+    markTaskCompleted( 'first-edit' );
     editsCount.value += 1;
     streakCount.value = Math.max( streakCount.value, 1 );
-    setTimeout( () => {
-      if ( recentlyCompletedTaskKey.value === 'first-edit' ) {
-        recentlyCompletedTaskKey.value = '';
-      }
-    }, 550 );
   }
 
   setTimeout( () => {
@@ -1173,15 +1323,7 @@ function goToNextQuizStep() {
     return;
   }
 
-  progressionTasks.value = progressionTasks.value.map( ( task ) =>
-    task.key === 'five-pillars' ? { ...task, completed: true } : task
-  );
-  recentlyCompletedTaskKey.value = 'five-pillars';
-  setTimeout( () => {
-    if ( recentlyCompletedTaskKey.value === 'five-pillars' ) {
-      recentlyCompletedTaskKey.value = '';
-    }
-  }, 550 );
+  markTaskCompleted( 'five-pillars' );
   currentView.value = 'home';
 }
 
@@ -1199,6 +1341,32 @@ function getQuizOptionState( optionKey ) {
   }
 
   return '';
+}
+
+function markTaskCompleted( taskKey ) {
+  progressionTasks.value = progressionTasks.value.map( ( task ) =>
+    task.key === taskKey ? { ...task, completed: true } : task
+  );
+  recentlyCompletedTaskKey.value = taskKey;
+  setTimeout( () => {
+    if ( recentlyCompletedTaskKey.value === taskKey ) {
+      recentlyCompletedTaskKey.value = '';
+    }
+  }, 550 );
+  maybePromoteToContributorPath();
+}
+
+function maybePromoteToContributorPath() {
+  if ( hasContributorPath.value ) {
+    return;
+  }
+
+  if ( progressionTasks.value.length > 0 && progressionTasks.value.every( ( task ) => task.completed ) ) {
+    hasContributorPath.value = true;
+    progressionTasks.value = createContributorTasks();
+    recentlyCompletedTaskKey.value = '';
+    showContributorDialog.value = true;
+  }
 }
 </script>
 
@@ -1294,8 +1462,8 @@ function getQuizOptionState( optionKey ) {
       <div v-if="currentSurveyStep === 'welcome'" class="survey-page__panel survey-page__panel--welcome">
         <img
           class="survey-page__hero-image"
-          :src="wikiMinuteWelcomeImage"
-          alt="Illustration of Wikipedia contributors around a laptop"
+          :src="welcomeSurveyHeroImage"
+          alt="Illustration of the Wikipedia globe"
         >
 
         <div class="survey-page__copy">
@@ -1320,10 +1488,11 @@ function getQuizOptionState( optionKey ) {
           </CdxButton>
           <CdxButton
             class="survey-page__full-button"
+            weight="quiet"
             size="large"
             @click="skipSurvey"
           >
-            Skip
+            Not now
           </CdxButton>
         </div>
       </div>
@@ -1353,10 +1522,10 @@ function getQuizOptionState( optionKey ) {
         <template v-if="currentSurveyStep === 'reason'">
           <div class="survey-page__copy survey-page__copy--step">
             <h1 class="survey-page__title survey-page__title--question">
-              Why did you create your account?
+              Have you edited Wikipedia before?
             </h1>
             <p class="survey-page__body">
-              Please select one response.
+              We’ll set up your path based on your experience.
             </p>
           </div>
 
@@ -1369,16 +1538,14 @@ function getQuizOptionState( optionKey ) {
               type="button"
               @click="selectedReason = option.key"
             >
-              <span class="survey-card__title">{{ option.title }}</span>
-              <span v-if="option.description" class="survey-card__description">{{ option.description }}</span>
-              <CdxTextInput
-                v-if="option.key === 'something-else'"
-                v-model="otherReason"
-                class="survey-card__input"
-                placeholder="Add your reason"
-                aria-label="Add your reason"
-                @click.stop
-              />
+              <span class="survey-card__marker" aria-hidden="true">
+                <CdxIcon v-if="selectedReason === option.key" :icon="cdxIconCheck" />
+                <span v-else>{{ reasonOptions.findIndex( ( item ) => item.key === option.key ) + 1 }}</span>
+              </span>
+              <span class="survey-card__content">
+                <span class="survey-card__title">{{ option.title }}</span>
+                <span v-if="option.description" class="survey-card__description">{{ option.description }}</span>
+              </span>
             </button>
           </div>
         </template>
@@ -1389,22 +1556,50 @@ function getQuizOptionState( optionKey ) {
               What topics you are interested in?
             </h1>
             <p class="survey-page__body">
-              Select at least 2 topics.
+              Choose at least 4 topics you are interested in editing.
             </p>
           </div>
 
-          <div class="survey-page__options">
-            <button
-              v-for="option in topicOptions"
-              :key="option.key"
-              class="survey-card"
-              :class="{ 'survey-card--selected': selectedTopics.includes( option.key ) }"
-              type="button"
-              @click="toggleTopic( option.key )"
+          <div class="survey-topic-groups">
+            <section
+              v-for="category in topicCategories"
+              :key="category.key"
+              class="survey-topic-group"
             >
-              <span class="survey-card__title">{{ option.title }}</span>
-              <span class="survey-card__description">{{ option.description }}</span>
-            </button>
+              <div class="survey-topic-group__header">
+                <h2 class="survey-topic-group__title">
+                  {{ category.title }}
+                </h2>
+                <CdxButton
+                  class="survey-topic-group__select-all"
+                  weight="quiet"
+                  action="progressive"
+                  @click="selectAllTopicsInCategory( category )"
+                >
+                  Select all
+                </CdxButton>
+              </div>
+
+              <div class="survey-topic-group__chips">
+                <button
+                  v-for="topic in category.topics"
+                  :key="topic"
+                  class="survey-topic-chip"
+                  :class="{ 'survey-topic-chip--selected': selectedTopics.includes( topic ) }"
+                  type="button"
+                  @click="toggleGroupedTopic( topic )"
+                >
+                  <span
+                    v-if="selectedTopics.includes( topic )"
+                    class="survey-topic-chip__icon"
+                    aria-hidden="true"
+                  >
+                    <CdxIcon :icon="cdxIconCheck" />
+                  </span>
+                  <span>{{ topic }}</span>
+                </button>
+              </div>
+            </section>
           </div>
         </template>
 
@@ -1414,8 +1609,7 @@ function getQuizOptionState( optionKey ) {
               Which languages do you read and write in?
             </h1>
             <p class="survey-page__body">
-              Wikipedia is available in nearly 300 languages. Please, select all the languages
-              you read and write in.
+              Wikipedia is available in nearly 300 languages. You can add up to 10 languages you read and write.
             </p>
           </div>
 
@@ -1440,6 +1634,14 @@ function getQuizOptionState( optionKey ) {
               <span>Add</span>
             </button>
           </div>
+
+          <CdxCheckbox
+            v-if="selectedLanguages.length > 1"
+            v-model="isInterestedInTranslation"
+            class="survey-page__translation-optin"
+          >
+            I am interested in translating Wikipedia articles
+          </CdxCheckbox>
         </template>
 
         <template v-else-if="currentSurveyStep === 'email'">
@@ -1491,6 +1693,82 @@ function getQuizOptionState( optionKey ) {
             </CdxButton>
           </div>
         </div>
+      </div>
+    </section>
+
+    <section v-else-if="currentView === 'survey-success'" class="survey-page survey-page--welcome">
+      <div class="survey-page__panel survey-page__panel--welcome survey-page__panel--success">
+        <img
+          class="survey-page__hero-image survey-page__hero-image--success"
+          :src="surveySuccessHeroImage"
+          alt="Illustration of the Wikipedia globe"
+        >
+
+        <div class="survey-page__copy">
+          <h1 class="survey-page__title survey-page__title--success">
+            You're all set, {{ userName }}
+          </h1>
+          <p class="survey-page__body survey-page__body--welcome">
+            Your homepage is ready. We've picked your first edit based on your interests.
+          </p>
+        </div>
+
+        <div class="survey-page__welcome-actions survey-page__welcome-actions--success">
+          <CdxButton
+            class="survey-page__full-button"
+            action="progressive"
+            weight="primary"
+            size="large"
+            @click="goToHomepage"
+          >
+            Go to homepage
+          </CdxButton>
+          <CdxButton
+            class="survey-page__full-button"
+            weight="quiet"
+            size="large"
+            @click="reviseSurveyResponses"
+          >
+            Revise responses
+          </CdxButton>
+        </div>
+      </div>
+    </section>
+
+    <section v-else-if="currentView === 'video'" class="video-page">
+      <header class="video-page__header">
+        <CdxButton
+          class="video-page__back"
+          weight="quiet"
+          aria-label="Go back"
+          @click="goToHomepage"
+        >
+          <CdxIcon :icon="cdxIconArrowPrevious" />
+        </CdxButton>
+        <h1 class="video-page__header-title">
+          Wiki Minute video
+        </h1>
+      </header>
+
+      <div class="video-page__player-wrap">
+        <video
+          class="video-page__player"
+          controls
+          playsinline
+          @ended="handleWikiMinuteEnded"
+        >
+          <source :src="wikiMinuteVideoSource" type="video/webm">
+        </video>
+      </div>
+
+      <div v-if="videoCompleted" class="video-page__actions">
+        <CdxButton
+          class="video-page__button"
+          size="large"
+          @click="goToHomepage"
+        >
+          Back to homepage
+        </CdxButton>
       </div>
     </section>
 
@@ -1838,9 +2116,12 @@ function getQuizOptionState( optionKey ) {
           <h1 class="homepage__name">
             {{ userName }}
           </h1>
-          <p class="homepage__meta">
-            Joined today • Beginner editor
-          </p>
+          <div class="homepage__meta">
+            <CdxInfoChip :status="profileLevelStatus">
+              {{ profileLevelLabel }}
+            </CdxInfoChip>
+            <span>{{ profileJoinedText }}</span>
+          </div>
         </div>
       </header>
 
@@ -1893,6 +2174,7 @@ function getQuizOptionState( optionKey ) {
                 class="progression-item__button"
                 action="progressive"
                 weight="primary"
+                size="small"
                 @click="completeCurrentTask"
               >
                 {{ task.buttonLabel }}
@@ -1951,6 +2233,52 @@ function getQuizOptionState( optionKey ) {
         </template>
       </CdxCard>
     </section>
+
+    <transition name="contributor-sheet-fade">
+      <div
+        v-if="showContributorDialog"
+        class="contributor-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="contributor-sheet-title"
+      >
+        <button
+          class="contributor-sheet__overlay"
+          type="button"
+          aria-label="Close contributor message"
+          @click="showContributorDialog = false"
+        ></button>
+
+        <div class="contributor-sheet__panel">
+          <div class="contributor-sheet__content">
+            <img
+              class="contributor-sheet__image"
+              :src="contributorDialogImage"
+              alt="Wikipedia contributor achievement illustration"
+            >
+            <h2 id="contributor-sheet-title" class="contributor-sheet__title">
+              You've completed the Beginner path
+            </h2>
+            <p class="contributor-sheet__body">
+              Congratulations! You're now a Contributor. A new path is ready for you to keep
+              improving your editor skills.
+            </p>
+          </div>
+
+          <div class="contributor-sheet__actions">
+            <CdxButton
+              class="contributor-sheet__button"
+              action="progressive"
+              weight="primary"
+              size="medium"
+              @click="showContributorDialog = false"
+            >
+              Got it
+            </CdxButton>
+          </div>
+        </div>
+      </div>
+    </transition>
   </ChromeWrapper>
 </template>
 
@@ -2052,18 +2380,24 @@ function getQuizOptionState( optionKey ) {
 .survey-page__panel--welcome {
   gap: var(--spacing-300);
   padding-top: 0;
+  padding-bottom: 180px;
 }
 
 .survey-page__hero-image {
   display: block;
   width: calc(100% + 32px);
   height: auto;
+  min-height: 180px;
   margin-inline: -16px;
   margin-top: 0;
   border: 0;
   border-radius: 0;
   background-color: transparent;
   object-fit: cover;
+}
+
+.survey-page__hero-image--success {
+  filter: hue-rotate(42deg) saturate(1.15);
 }
 
 .survey-page__panel--welcome .survey-page__copy {
@@ -2112,8 +2446,17 @@ function getQuizOptionState( optionKey ) {
   line-height: 22px;
 }
 
+.survey-page__title--success {
+  font-family: var(--font-family-system-sans);
+  font-size: 28px;
+  line-height: 38px;
+  font-weight: var(--font-weight-bold);
+}
+
 .homepage__meta {
-  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   color: var(--color-subtle);
   font-size: 14px;
   line-height: 20px;
@@ -2183,7 +2526,14 @@ function getQuizOptionState( optionKey ) {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-75);
-  margin-bottom: 80px;
+  position: fixed;
+  right: 0;
+  bottom: calc(48px + env(safe-area-inset-bottom, 0px));
+  left: 0;
+  z-index: 1;
+  max-width: 30rem;
+  margin: 0 auto;
+  padding: 0 16px;
 }
 
 .survey-page__full-button {
@@ -2224,16 +2574,84 @@ function getQuizOptionState( optionKey ) {
   gap: 12px;
 }
 
-.survey-card {
+.survey-topic-groups {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 32px;
+}
+
+.survey-topic-group {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.survey-topic-group__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.survey-topic-group__title {
+  margin: 0;
+  color: var(--color-emphasized);
+  font-size: 18px;
+  line-height: 30px;
+  font-weight: var(--font-weight-bold);
+}
+
+.survey-topic-group__select-all:deep(.cdx-button) {
+  font-size: 14px;
+}
+
+.survey-topic-group__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.survey-topic-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  border: 1px solid var(--border-color-base);
+  border-radius: 999px;
+  background-color: var(--background-color-base);
+  padding: 0 16px;
+  color: var(--color-base);
+  font-size: 16px;
+  line-height: 22px;
+}
+
+.survey-topic-chip--selected {
+  border-color: var(--border-color-progressive);
+  background-color: var(--background-color-progressive-subtle);
+  color: var(--color-progressive);
+}
+
+.survey-topic-chip__icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-progressive);
+}
+
+.survey-topic-chip__icon :deep(.cdx-icon) {
+  color: var(--color-progressive);
+}
+
+.survey-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
   width: 100%;
   border: var(--border-base);
   border-radius: var(--border-radius-base);
   background-color: var(--background-color-base);
   padding: 12px;
   text-align: left;
+  border-radius: 999px;
 }
 
 .survey-card--selected {
@@ -2241,10 +2659,48 @@ function getQuizOptionState( optionKey ) {
   background-color: var(--background-color-progressive-subtle);
 }
 
+.survey-card__marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border: 1px solid var(--border-color-base);
+  border-radius: 50%;
+  background-color: var(--background-color-base);
+  color: var(--color-base);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.survey-card--selected .survey-card__marker {
+  border-color: var(--background-color-progressive);
+  background-color: var(--background-color-progressive);
+  color: var(--color-inverted);
+}
+
+.survey-card--selected .survey-card__marker :deep(.cdx-icon) {
+  color: var(--color-inverted);
+}
+
+.survey-card__marker :deep(.cdx-icon) {
+  width: 20px;
+  height: 20px;
+}
+
+.survey-card__content {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .progression-item__title,
 .module__title,
 .homepage__tab {
-  color: var(--color-emphasized);
+  color: var(--color-subtle);
   font-size: 1rem;
   font-weight: var(--font-weight-bold);
   line-height: 1.4;
@@ -2253,8 +2709,8 @@ function getQuizOptionState( optionKey ) {
 .survey-card__title {
   color: var(--color-emphasized);
   font-size: 1.125rem;
-  font-weight: var(--font-weight-bold);
-  line-height: 1.75rem;
+  font-weight: var(--font-weight-regular);
+  line-height: 1.5rem;
 }
 
 .survey-card__description {
@@ -2277,18 +2733,18 @@ function getQuizOptionState( optionKey ) {
   display: inline-flex;
   align-items: center;
   gap: var(--spacing-50);
-  border: 1px solid var(--border-color-progressive);
+  border: 1px solid var(--border-color-base);
   border-radius: 999px;
-  background-color: var(--background-color-progressive-subtle);
+  background-color: transparent;
   padding: 0.625rem 0.875rem;
-  color: var(--color-progressive);
+  color: var(--color-base);
   font-size: 1rem;
-  font-weight: var(--font-weight-bold);
+  font-weight: var(--font-weight-regular);
 }
 
 .survey-chip--add {
   border-color: var(--border-color-interactive);
-  background-color: var(--background-color-base);
+  background-color: transparent;
   color: var(--color-base);
 }
 
@@ -2316,6 +2772,10 @@ function getQuizOptionState( optionKey ) {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-50);
+}
+
+.survey-page__translation-optin {
+  margin-top: 24px;
 }
 
 .survey-page__field-label {
@@ -2481,6 +2941,10 @@ function getQuizOptionState( optionKey ) {
   color: var(--color-placeholder);
 }
 
+.progression-item--active .progression-item__title {
+  color: var(--color-base);
+}
+
 .progression-item--active .progression-item__marker {
   background-color: var(--background-color-progressive);
   color: var(--color-inverted);
@@ -2511,6 +2975,10 @@ function getQuizOptionState( optionKey ) {
 
 .progression-item__button {
   align-self: flex-start;
+}
+
+.progression-item__button:deep(.cdx-button) {
+  font-size: 14px;
 }
 
 .module__mentor {
@@ -2604,6 +3072,130 @@ function getQuizOptionState( optionKey ) {
 .survey-page__title--question {
   font-size: 20px;
   line-height: 30px;
+}
+
+.video-page {
+  display: flex;
+  min-height: calc(100vh - 54px);
+  flex-direction: column;
+  background-color: var(--background-color-base);
+}
+
+.video-page__header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 48px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border-color-subtle);
+  background-color: var(--background-color-base);
+}
+
+.video-page__back {
+  flex-shrink: 0;
+}
+
+.video-page__header-title {
+  margin: 0;
+  color: var(--color-emphasized);
+  font-family: var(--font-family-system-sans);
+  font-size: 18px;
+  line-height: 22px;
+  font-weight: var(--font-weight-bold);
+}
+
+.video-page__player-wrap {
+  display: flex;
+  width: calc(100% + 32px);
+  margin-inline: -16px;
+  background-color: var(--background-color-base);
+}
+
+.video-page__player {
+  display: block;
+  width: 100%;
+  height: auto;
+  background-color: #000;
+}
+
+.video-page__actions {
+  padding: 24px 16px 48px;
+  background-color: var(--background-color-base);
+}
+
+.video-page__button {
+  width: 100%;
+  justify-content: center;
+}
+
+.contributor-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.contributor-sheet__overlay {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background-color: var(--background-color-backdrop-light);
+}
+
+.contributor-sheet__panel {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 30rem);
+  max-width: 30rem;
+  border: var(--border-base);
+  border-color: var(--border-color-muted);
+  border-radius: 12px 12px 0 0;
+  background-color: var(--background-color-base);
+  box-shadow: 0 -4px 24px rgb(0 0 0 / 12%);
+}
+
+.contributor-sheet__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 24px 16px 0;
+}
+
+.contributor-sheet__image {
+  display: block;
+  width: 180px;
+  max-width: 100%;
+  height: auto;
+  margin-bottom: 24px;
+}
+
+.contributor-sheet__title {
+  margin: 0;
+  color: var(--color-emphasized);
+  font-family: var(--font-family-system-sans);
+  font-size: 18px;
+  line-height: 28px;
+  font-weight: var(--font-weight-bold);
+}
+
+.contributor-sheet__body {
+  margin: 8px 0 0;
+  color: var(--color-base);
+  font-size: 16px;
+  line-height: 22px;
+}
+
+.contributor-sheet__actions {
+  padding: 16px 16px 16px;
+}
+
+.contributor-sheet__button,
+.contributor-sheet__button:deep(.cdx-button) {
+  width: 100%;
+  justify-content: center;
 }
 
 .quiz-page {
@@ -2743,44 +3335,46 @@ function getQuizOptionState( optionKey ) {
 }
 
 .quiz-option {
-  border: var(--border-base);
-  border-color: var(--border-color-base);
-  border-radius: var(--border-radius-base);
-  background-color: var(--background-color-base);
-}
-
-.quiz-option--success {
-  border-color: var(--border-color-success);
-  background-color: var(--background-color-success-subtle);
-}
-
-.quiz-option--error {
-  border-color: var(--border-color-error);
-  background-color: var(--background-color-error-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .quiz-option__button {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
   width: 100%;
-  border: 0;
-  background: transparent;
+  border: var(--border-base);
+  border-color: var(--border-color-base);
+  border-radius: 999px;
+  background: var(--background-color-base);
   padding: 12px;
   text-align: left;
+}
+
+.quiz-option--success .quiz-option__button {
+  border-color: var(--border-color-success);
+  background-color: var(--background-color-success-subtle);
+}
+
+.quiz-option--error .quiz-option__button {
+  border-color: var(--border-color-error);
+  background-color: var(--background-color-error-subtle);
 }
 
 .quiz-option__key {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   flex-shrink: 0;
   border: 1px solid var(--border-color-base);
   border-radius: 50%;
   color: var(--color-subtle);
-  font-size: 14px;
+  background-color: var(--background-color-base);
+  font-size: 20px;
   line-height: 1;
 }
 
@@ -2800,16 +3394,25 @@ function getQuizOptionState( optionKey ) {
   color: var(--color-emphasized);
   font-size: 16px;
   line-height: 22px;
+  font-weight: var(--font-weight-regular);
 }
 
 .quiz-option__message {
   margin: 0;
-  padding: 0 12px 12px 12px;
+  padding: 0 12px;
   font-size: 14px;
   line-height: 22px;
 }
 
 .quiz-option__message--error {
+  color: var(--color-error);
+}
+
+.quiz-option--success .quiz-option__text {
+  color: var(--color-success);
+}
+
+.quiz-option--error .quiz-option__text {
   color: var(--color-error);
 }
 
@@ -2917,6 +3520,7 @@ function getQuizOptionState( optionKey ) {
   gap: 16px;
   align-items: stretch;
   width: max-content;
+  padding-left: 0;
 }
 
 .suggested-edit-card {
@@ -3140,6 +3744,34 @@ function getQuizOptionState( optionKey ) {
 
 .progression-item--recently-completed .progression-item__marker {
   animation: progression-marker-complete 420ms ease;
+}
+
+@media (max-width: 639px) {
+  .contributor-sheet__panel {
+    width: 100%;
+    max-width: none;
+    border-radius: 12px 12px 0 0;
+  }
+}
+
+.contributor-sheet-fade-enter-active,
+.contributor-sheet-fade-leave-active {
+  transition: opacity 180ms ease;
+}
+
+.contributor-sheet-fade-enter-active .contributor-sheet__panel,
+.contributor-sheet-fade-leave-active .contributor-sheet__panel {
+  transition: transform 220ms ease;
+}
+
+.contributor-sheet-fade-enter-from,
+.contributor-sheet-fade-leave-to {
+  opacity: 0;
+}
+
+.contributor-sheet-fade-enter-from .contributor-sheet__panel,
+.contributor-sheet-fade-leave-to .contributor-sheet__panel {
+  transform: translateY(24px);
 }
 
 @keyframes progression-marker-complete {
