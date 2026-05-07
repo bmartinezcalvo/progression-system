@@ -9,8 +9,12 @@ import {
   cdxIconCollapse,
   cdxIconClose
   ,
+  cdxIconCalendar,
   cdxIconConfigure,
+  cdxIconEdit,
   cdxIconExpand
+  ,
+  cdxIconHeart
 } from '@wikimedia/codex-icons';
 
 import ChromeWrapper from './components/ChromeWrapper.vue';
@@ -29,10 +33,14 @@ const recentlyCompletedTaskKey = ref( '' );
 const showArticlePathEntry = ref( false );
 const suggestedEditsViewport = ref( null );
 const videoCompleted = ref( false );
+const showVideoBackButton = ref( false );
 const hasContributorPath = ref( false );
 const showContributorDialog = ref( false );
 const showWelcomeSuccessSheet = ref( false );
 const showContributorBadgeGlow = ref( false );
+const showWikiMinuteModal = ref( false );
+const selectedWikiMinuteVideo = ref( null );
+const activeTaskKey = ref( 'welcome-survey' );
 let articleScrollTimeout = null;
 
 const selectedReason = ref( '' );
@@ -54,6 +62,8 @@ const surveySuccessHeroImage =
   'https://commons.wikimedia.org/wiki/Special:Redirect/file/Wikipedia%2020%20cover%20puzzle%20globe%20blue.png';
 const wikiMinuteVideoSource =
   'https://commons.wikimedia.org/wiki/Special:Redirect/file/How_does_Wikipedia_work_%E2%80%93_A_WIKI_MINUTE_16-9.webm';
+const featuredWikiMinuteVideoSource =
+  'https://commons.wikimedia.org/wiki/Special:Redirect/file/If_volunteers_edit_Wikipedia%2C_how_can_you_trust_it_%E2%80%93_A_WIKI_MINUTE_16-9_%E2%80%93_NO_VO.webm';
 const contributorDialogImage =
   'https://commons.wikimedia.org/wiki/Special:Redirect/file/WYiR_Puzzle_5.png';
 const isabellaSuggestedEditImage =
@@ -74,6 +84,25 @@ const articleSections = [
     title: 'Culture',
     body: 'Paris is known for its museums, architecture, fashion, literature, and cuisine. Landmarks such as the Eiffel Tower, the Louvre, and Notre-Dame make it one of the most visited cities in the world.'
   }
+];
+
+const wikiMinuteVideos = [
+  { key: 'how-wikipedia-works', title: 'How does Wikipedia work?', source: wikiMinuteVideoSource, watched: true },
+  { key: 'diversity', title: 'Does the content on Wikipedia reflect the world’s diversity?', source: wikiMinuteVideoSource },
+  { key: 'trust', title: 'Can you trust what’s on Wikipedia?', source: wikiMinuteVideoSource },
+  { key: 'unique-article', title: 'What makes a Wikipedia article unique?', source: wikiMinuteVideoSource },
+  { key: 'fundraising', title: 'Why do you see fundraising messages on Wikipedia?', source: wikiMinuteVideoSource },
+  { key: 'wmf', title: 'What does the Wikimedia Foundation do?', source: wikiMinuteVideoSource },
+  { key: 'movement', title: 'What is the Wikimedia free knowledge movement?', source: wikiMinuteVideoSource },
+  { key: 'projects', title: 'What free knowledge projects does the Wikimedia Foundation support?', source: wikiMinuteVideoSource },
+  { key: 'join-movement', title: 'How can you join the Wikimedia free knowledge movement?', source: wikiMinuteVideoSource },
+  { key: 'misinformation', title: 'How is misinformation addressed on Wikipedia?', source: wikiMinuteVideoSource },
+  { key: 'privacy', title: 'How does Wikipedia protect readers’ privacy?', source: wikiMinuteVideoSource },
+  { key: 'content-governance', title: 'Who is in charge of content on Wikipedia?', source: wikiMinuteVideoSource },
+  { key: 'social-media', title: 'What makes Wikipedia different from social media platforms?', source: wikiMinuteVideoSource },
+  { key: 'ai-role', title: 'What is the role of Wikipedia in the age of AI?', source: wikiMinuteVideoSource },
+  { key: 'volunteers-trust', title: 'If volunteers edit Wikipedia, how can you trust it?', source: featuredWikiMinuteVideoSource },
+  { key: 'run-wikipedia', title: 'What does it take to run Wikipedia?', source: wikiMinuteVideoSource }
 ];
 
 const intentOptions = [
@@ -343,7 +372,7 @@ function createBeginnerTasks() {
       key: 'welcome-survey',
       title: 'Complete Welcome Survey',
       description: 'Respond four quick questions to personalize your experience',
-      duration: '1 min',
+      duration: '2 min',
       buttonLabel: 'Complete survey',
       action: 'survey',
       completed: false
@@ -940,9 +969,20 @@ const currentQuizStep = computed( () => quizSteps[ currentQuizIndex.value ] );
 const completedTaskCount = computed(
   () => progressionTasks.value.filter( ( task ) => task.completed ).length
 );
-const currentTaskIndex = computed(
+const firstIncompleteTaskIndex = computed(
   () => progressionTasks.value.findIndex( ( task ) => !task.completed )
 );
+const currentTaskIndex = computed( () => {
+  const activeIndex = progressionTasks.value.findIndex(
+    ( task ) => task.key === activeTaskKey.value && !task.completed
+  );
+
+  if ( activeIndex >= 0 ) {
+    return activeIndex;
+  }
+
+  return firstIncompleteTaskIndex.value;
+} );
 const currentTaskNumber = computed( () => currentTaskIndex.value + 1 );
 const activeProgressTask = computed(
   () => ( currentTaskIndex.value >= 0 ? progressionTasks.value[ currentTaskIndex.value ] : null )
@@ -1010,14 +1050,27 @@ const currentSuggestedEdit = computed(
 const currentSuggestedEditSequenceNumber = computed(
   () => Math.min( currentSuggestedEditIndex.value + 1, remainingSuggestedEdits.value.length || 1 )
 );
+const hasCompletedWikiMinuteTask = computed(
+  () => progressionTasks.value.find( ( task ) => task.key === 'wiki-minute' )?.completed
+);
+const hasCompletedFirstEditTask = computed(
+  () => progressionTasks.value.find( ( task ) => task.key === 'first-edit' )?.completed
+);
+const featuredWikiMinuteVideo = computed(
+  () => wikiMinuteVideos.find( ( video ) => video.key === 'volunteers-trust' ) || wikiMinuteVideos[ 0 ]
+);
+const homepageSuggestedEditsPreview = computed( () =>
+  rankedSuggestedEdits.value
+    .slice( 0, 8 )
+);
 const currentSurveyQuestionNumber = computed( () =>
   currentSurveyStepIndex.value > 0 ? currentSurveyStepIndex.value : 0
 );
 const shouldShowChromeFooter = computed(
-  () => ![ 'signup', 'survey', 'survey-success', 'quiz', 'suggested-edits' ].includes( currentView.value )
+  () => ![ 'signup', 'survey', 'survey-success', 'quiz', 'suggested-edits', 'video', 'wiki-minute-library' ].includes( currentView.value )
 );
 const shouldShowChromeSiteHeader = computed(
-  () => currentView.value !== 'suggested-edits'
+  () => ![ 'suggested-edits', 'video', 'wiki-minute-library' ].includes( currentView.value )
 );
 const chromeHeaderMode = computed(
   () => ( currentView.value === 'signup' ? 'account-creation' : 'default' )
@@ -1053,9 +1106,20 @@ watch(
   ( nextView ) => {
     if ( nextView === 'home' ) {
       isProgressionExpanded.value = !shouldCollapseProgression.value;
+      triggerProfileBadgeGlow();
     }
 
-    if ( nextView !== 'article' ) {
+    if ( nextView === 'article' ) {
+      showArticlePathEntry.value = false;
+      if ( articleScrollTimeout ) {
+        clearTimeout( articleScrollTimeout );
+      }
+      articleScrollTimeout = setTimeout( () => {
+        if ( currentView.value === 'article' && activeProgressTask.value ) {
+          showArticlePathEntry.value = true;
+        }
+      }, 1000 );
+    } else {
       showArticlePathEntry.value = false;
       if ( articleScrollTimeout ) {
         clearTimeout( articleScrollTimeout );
@@ -1064,6 +1128,23 @@ watch(
     }
   },
   { immediate: true }
+);
+
+watch(
+  progressionTasks,
+  ( nextTasks ) => {
+    const currentActiveTask = nextTasks.find(
+      ( task ) => task.key === activeTaskKey.value && !task.completed
+    );
+
+    if ( currentActiveTask ) {
+      return;
+    }
+
+    const nextIncompleteTask = nextTasks.find( ( task ) => !task.completed );
+    activeTaskKey.value = nextIncompleteTask?.key || '';
+  },
+  { deep: true, immediate: true }
 );
 
 onMounted( () => {
@@ -1200,6 +1281,7 @@ function completeCurrentTask( event ) {
 
   if ( task.action === 'video' ) {
     videoCompleted.value = false;
+    showVideoBackButton.value = false;
     currentView.value = 'video';
     return;
   }
@@ -1236,6 +1318,16 @@ function goToArticle() {
   currentView.value = 'article';
 }
 
+function setActiveTask( taskKey ) {
+  const task = progressionTasks.value.find( ( item ) => item.key === taskKey );
+
+  if ( !task || task.completed ) {
+    return;
+  }
+
+  activeTaskKey.value = taskKey;
+}
+
 function goToSuggestedEdits() {
   currentSuggestedEditIndex.value = 0;
   currentView.value = 'suggested-edits';
@@ -1246,9 +1338,46 @@ function goToSuggestedEdits() {
   } );
 }
 
+function goToWikiMinuteLibrary() {
+  currentView.value = 'wiki-minute-library';
+}
+
+function openWikiMinuteModal( video ) {
+  selectedWikiMinuteVideo.value = video;
+  showWikiMinuteModal.value = true;
+}
+
+function closeWikiMinuteModal() {
+  showWikiMinuteModal.value = false;
+  selectedWikiMinuteVideo.value = null;
+}
+
 function handleWikiMinuteEnded() {
   videoCompleted.value = true;
+  showVideoBackButton.value = true;
   markTaskCompleted( 'wiki-minute' );
+}
+
+function handleWikiMinuteTimeUpdate( event ) {
+  const player = event.target;
+
+  if ( !player?.duration || Number.isNaN( player.duration ) ) {
+    return;
+  }
+
+  if ( player.duration - player.currentTime <= 8 ) {
+    showVideoBackButton.value = true;
+  }
+}
+
+function completeVideoAndReturnHome() {
+  if ( !progressionTasks.value.find( ( task ) => task.key === 'wiki-minute' )?.completed ) {
+    markTaskCompleted( 'wiki-minute' );
+  }
+
+  videoCompleted.value = true;
+  showVideoBackButton.value = true;
+  currentView.value = 'home';
 }
 
 function resolveSuggestedEdit( mode, suggestionKey ) {
@@ -1263,10 +1392,13 @@ function resolveSuggestedEdit( mode, suggestionKey ) {
     suggestion.articleSnippetHtml = suggestion.resolvedSnippetHtml;
   }
 
-  if ( mode === 'complete' && !progressionTasks.value.find( ( task ) => task.key === 'first-edit' )?.completed ) {
-    markTaskCompleted( 'first-edit' );
+  if ( mode === 'complete' ) {
     editsCount.value += 1;
     streakCount.value = Math.max( streakCount.value, 1 );
+
+    if ( !progressionTasks.value.find( ( task ) => task.key === 'first-edit' )?.completed ) {
+      markTaskCompleted( 'first-edit' );
+    }
   }
 
   setTimeout( () => {
@@ -1412,6 +1544,7 @@ function maybePromoteToContributorPath() {
     progressionTasks.value = createContributorTasks();
     recentlyCompletedTaskKey.value = '';
     showContributorDialog.value = true;
+    activeTaskKey.value = progressionTasks.value[ 0 ]?.key || '';
   }
 }
 
@@ -1431,6 +1564,10 @@ function scrollToRenderedSuggestion( renderedIndex ) {
 
 function dismissContributorSheet() {
   showContributorDialog.value = false;
+  triggerProfileBadgeGlow();
+}
+
+function triggerProfileBadgeGlow() {
   showContributorBadgeGlow.value = true;
   setTimeout( () => {
     showContributorBadgeGlow.value = false;
@@ -1817,19 +1954,24 @@ function dismissContributorSheet() {
           class="video-page__player"
           controls
           playsinline
+          @timeupdate="handleWikiMinuteTimeUpdate"
           @ended="handleWikiMinuteEnded"
         >
           <source :src="wikiMinuteVideoSource" type="video/webm">
         </video>
       </div>
 
-      <div v-if="videoCompleted" class="video-page__actions">
+      <div v-if="showVideoBackButton" class="video-page__actions">
         <CdxButton
           class="video-page__button"
-          size="large"
-          @click="goToHomepage"
+          action="default"
+          weight="normal"
+          @click="completeVideoAndReturnHome"
         >
-          Back to homepage
+          <template #icon>
+            <CdxIcon :icon="cdxIconCheck" />
+          </template>
+          Completed video
         </CdxButton>
       </div>
     </section>
@@ -1944,6 +2086,50 @@ function dismissContributorSheet() {
           </CdxButton>
         </div>
       </div>
+    </section>
+
+    <section v-else-if="currentView === 'wiki-minute-library'" class="wiki-minute-library-page">
+      <header class="wiki-minute-library-page__header">
+        <CdxButton
+          class="wiki-minute-library-page__back"
+          weight="quiet"
+          aria-label="Go back"
+          @click="goToHomepage"
+        >
+          <CdxIcon :icon="cdxIconArrowPrevious" />
+        </CdxButton>
+        <h1 class="wiki-minute-library-page__header-title">
+          Wiki Minute videos
+        </h1>
+      </header>
+
+      <section class="wiki-minute-library-page__list">
+        <button
+          v-for="video in wikiMinuteVideos"
+          :key="video.key"
+          class="wiki-minute-library-item"
+          type="button"
+          @click="openWikiMinuteModal( video )"
+        >
+          <video
+            class="wiki-minute-library-item__thumbnail"
+            :src="video.source"
+            muted
+            playsinline
+            preload="metadata"
+          ></video>
+          <div class="wiki-minute-library-item__copy">
+            <span class="wiki-minute-library-item__title">{{ video.title }}</span>
+            <span
+              v-if="video.watched && hasCompletedWikiMinuteTask"
+              class="wiki-minute-library-item__status"
+            >
+              <CdxIcon :icon="cdxIconCheck" />
+              Watched
+            </span>
+          </div>
+        </button>
+      </section>
     </section>
 
     <template v-else-if="currentView === 'suggested-edits'">
@@ -2179,12 +2365,14 @@ function dismissContributorSheet() {
             {{ userName }}
           </h1>
           <div class="homepage__meta">
-            <CdxInfoChip
-              :status="profileLevelStatus"
+            <span
+              class="homepage__level-chip"
               :class="{ 'homepage__level-chip--glow': showContributorBadgeGlow }"
             >
-              {{ profileLevelLabel }}
-            </CdxInfoChip>
+              <CdxInfoChip :status="profileLevelStatus">
+                {{ profileLevelLabel }}
+              </CdxInfoChip>
+            </span>
             <span>{{ profileJoinedText }}</span>
           </div>
         </div>
@@ -2210,6 +2398,7 @@ function dismissContributorSheet() {
               'progression-item--active': index === currentTaskIndex,
               'progression-item--recently-completed': recentlyCompletedTaskKey === task.key
             }"
+            @click="setActiveTask( task.key )"
           >
             <div class="progression-item__rail">
               <div class="progression-item__marker">
@@ -2240,17 +2429,96 @@ function dismissContributorSheet() {
                 action="progressive"
                 weight="primary"
                 size="small"
-                @click="completeCurrentTask"
+                @click.stop="completeCurrentTask"
               >
-                {{ task.buttonLabel }}
-                <template #icon>
+                <template #icon-end>
                   <CdxIcon :icon="cdxIconArrowNext" />
                 </template>
+                {{ task.buttonLabel }}
               </CdxButton>
             </div>
           </article>
         </div>
 
+      </section>
+
+      <section
+        v-if="hasCompletedFirstEditTask"
+        class="module module--suggested-edits"
+      >
+        <div class="module__suggested-edits-header">
+          <div>
+            <h2 class="module__title module__title--small">
+              Suggested edits
+            </h2>
+            <p class="module__body module__body--suggested-edits">
+              1 of 324 suggestions
+            </p>
+          </div>
+          <CdxButton
+            class="module__suggested-edits-link"
+            weight="quiet"
+            action="progressive"
+            @click="goToSuggestedEdits"
+          >
+            View all
+          </CdxButton>
+        </div>
+
+        <div class="module__suggested-edits-carousel">
+          <CdxCard
+            v-for="suggestion in homepageSuggestedEditsPreview"
+            :key="suggestion.key"
+            class="module__suggested-edits-card"
+            :thumbnail="{ url: suggestion.articleImage }"
+          >
+            <template #title>
+              {{ suggestion.articleTitle }}
+            </template>
+            <template #description>
+              {{ suggestion.articleDescription }}
+            </template>
+          </CdxCard>
+        </div>
+      </section>
+
+      <section
+        v-if="hasCompletedWikiMinuteTask"
+        class="module module--wiki-minute"
+      >
+        <div class="module__wiki-minute-header">
+          <div>
+            <h2 class="module__title module__title--small">
+              Wiki Minute videos
+            </h2>
+            <p class="module__body module__body--wiki-minute">
+              1 min of knowledge
+            </p>
+          </div>
+          <CdxButton
+            class="module__wiki-minute-link"
+            weight="quiet"
+            action="progressive"
+            @click="goToWikiMinuteLibrary"
+          >
+            View all
+          </CdxButton>
+        </div>
+
+        <button
+          class="module__wiki-minute-feature"
+          type="button"
+          @click="openWikiMinuteModal( featuredWikiMinuteVideo )"
+        >
+          <video
+            class="module__wiki-minute-thumbnail"
+            :src="featuredWikiMinuteVideo.source"
+            muted
+            playsinline
+            preload="metadata"
+          ></video>
+          <span class="module__wiki-minute-title">{{ featuredWikiMinuteVideo.title }}</span>
+        </button>
       </section>
 
       <section class="module module--mentor">
@@ -2276,15 +2544,24 @@ function dismissContributorSheet() {
 
       <section class="homepage__impact-grid">
         <article class="impact-card">
-          <strong class="impact-card__value">{{ editsCount }}/5</strong>
+          <strong class="impact-card__value">
+            <CdxIcon :icon="cdxIconEdit" />
+            <span>{{ editsCount }}/5</span>
+          </strong>
           <span class="impact-card__label">edits</span>
         </article>
         <article class="impact-card">
-          <strong class="impact-card__value">{{ thanksCount }}</strong>
+          <strong class="impact-card__value">
+            <CdxIcon :icon="cdxIconHeart" />
+            <span>{{ thanksCount }}</span>
+          </strong>
           <span class="impact-card__label">thanks</span>
         </article>
         <article class="impact-card">
-          <strong class="impact-card__value">{{ streakCount }}</strong>
+          <strong class="impact-card__value">
+            <CdxIcon :icon="cdxIconCalendar" />
+            <span>{{ streakCount }}</span>
+          </strong>
           <span class="impact-card__label">streak days</span>
         </article>
       </section>
@@ -2394,6 +2671,47 @@ function dismissContributorSheet() {
               Got it
             </CdxButton>
           </div>
+        </div>
+      </div>
+    </transition>
+
+    <transition name="contributor-sheet-fade">
+      <div
+        v-if="showWikiMinuteModal && selectedWikiMinuteVideo"
+        class="wiki-minute-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="wiki-minute-modal-title"
+      >
+        <button
+          class="wiki-minute-modal__overlay"
+          type="button"
+          aria-label="Close video modal"
+          @click="closeWikiMinuteModal"
+        ></button>
+
+        <div class="wiki-minute-modal__panel">
+          <header class="wiki-minute-modal__header">
+            <CdxButton
+              class="wiki-minute-modal__back"
+              weight="quiet"
+              aria-label="Close video modal"
+              @click="closeWikiMinuteModal"
+            >
+              <CdxIcon :icon="cdxIconArrowPrevious" />
+            </CdxButton>
+            <h1 id="wiki-minute-modal-title" class="wiki-minute-modal__title">
+              {{ selectedWikiMinuteVideo.title }}
+            </h1>
+          </header>
+
+          <video
+            class="wiki-minute-modal__player"
+            :src="selectedWikiMinuteVideo.source"
+            controls
+            playsinline
+            autoplay
+          ></video>
         </div>
       </div>
     </transition>
@@ -2599,8 +2917,18 @@ function dismissContributorSheet() {
   line-height: 20px;
 }
 
-.homepage__level-chip--glow:deep(.cdx-info-chip) {
-  animation: homepage-level-chip-glow 900ms ease;
+.homepage__level-chip {
+  position: relative;
+  display: inline-flex;
+  border-radius: 999px;
+}
+
+.homepage__level-chip:deep(.cdx-info-chip) {
+  position: relative;
+}
+
+.homepage__level-chip--glow {
+  animation: homepage-level-chip-glow 1100ms ease;
 }
 
 .survey-page__lead {
@@ -3031,6 +3359,10 @@ function dismissContributorSheet() {
   gap: var(--spacing-75);
 }
 
+.progression-item:not(.progression-item--complete) {
+  cursor: pointer;
+}
+
 .progression-item__rail {
   display: flex;
   flex-direction: column;
@@ -3042,13 +3374,13 @@ function dismissContributorSheet() {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid #c8ccd1;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border-color-interactive);
   border-radius: 50%;
   background-color: var(--background-color-base);
-  color: var(--color-subtle);
-  font-size: 14px;
+  color: var(--color-base);
+  font-size: 16px;
   font-weight: var(--font-weight-bold);
   line-height: 1;
   transition:
@@ -3063,7 +3395,7 @@ function dismissContributorSheet() {
   width: 1.5px;
   flex: 1 1 auto;
   min-height: 2.75rem;
-  background-color: var(--border-color-muted);
+  background-color: var(--border-color-interactive);
 }
 
 .progression-item--complete .progression-item__marker {
@@ -3076,14 +3408,8 @@ function dismissContributorSheet() {
   background-color: var(--border-color-success);
 }
 
-.progression-item--complete .progression-item__title,
-.progression-item--complete .progression-item__duration,
-.progression-item--complete .progression-item__description {
+.progression-item--complete .progression-item__title {
   color: var(--color-placeholder);
-}
-
-.progression-item--active .progression-item__title {
-  color: var(--color-base);
 }
 
 .progression-item--active .progression-item__marker {
@@ -3096,7 +3422,7 @@ function dismissContributorSheet() {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding-bottom: 24px;
+  padding-bottom: 16px;
 }
 
 .progression-item:last-child .progression-item__content {
@@ -3171,6 +3497,124 @@ function dismissContributorSheet() {
   min-height: 32px;
 }
 
+.module--suggested-edits {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background-color: var(--background-color-progressive-subtle);
+}
+
+.module__suggested-edits-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.module__body--suggested-edits {
+  color: var(--color-subtle);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.module__suggested-edits-link {
+  flex-shrink: 0;
+}
+
+.module__suggested-edits-link:deep(.cdx-button) {
+  font-size: 14px;
+  font-weight: var(--font-weight-bold);
+}
+
+.module__suggested-edits-carousel {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.module__suggested-edits-card {
+  min-width: 17rem;
+  flex: 0 0 17rem;
+}
+
+.module__suggested-edits-card:deep(.cdx-card) {
+  border-radius: var(--border-radius-base);
+}
+
+.module__suggested-edits-card:deep(.cdx-card__text__title) {
+  color: var(--color-base);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: var(--font-weight-bold);
+}
+
+.module__suggested-edits-card:deep(.cdx-card__text__description) {
+  color: var(--color-subtle);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.module--wiki-minute {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.module__wiki-minute-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.module__body--wiki-minute {
+  color: var(--color-subtle);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.module__wiki-minute-link {
+  flex-shrink: 0;
+}
+
+.module__wiki-minute-link:deep(.cdx-button) {
+  font-size: 14px;
+  font-weight: var(--font-weight-bold);
+}
+
+.module__wiki-minute-feature {
+  display: grid;
+  grid-template-columns: 7rem 1fr;
+  gap: 12px;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+}
+
+.module__wiki-minute-thumbnail {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--border-color-subtle);
+  border-radius: var(--border-radius-base);
+  object-fit: cover;
+  background-color: #000;
+}
+
+.module__wiki-minute-title {
+  color: var(--color-base);
+  font-size: 16px;
+  line-height: 22px;
+}
+
+.module--mentor .module__title,
+.module--wiki-minute .module__title {
+  color: var(--color-base);
+}
+
 .homepage__impact-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -3189,9 +3633,18 @@ function dismissContributorSheet() {
 }
 
 .impact-card__value {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   color: var(--color-emphasized);
   font-size: 16px;
   line-height: 1;
+}
+
+.impact-card__value :deep(.cdx-icon) {
+  width: 16px;
+  height: 16px;
+  color: var(--color-emphasized);
 }
 
 .survey-page__panel--step .survey-page__copy {
@@ -3267,6 +3720,123 @@ function dismissContributorSheet() {
 .video-page__button {
   width: 100%;
   justify-content: center;
+}
+
+.wiki-minute-library-page {
+  display: flex;
+  min-height: calc(100vh - 54px);
+  flex-direction: column;
+  background-color: var(--background-color-base);
+}
+
+.wiki-minute-library-page__header,
+.wiki-minute-modal__header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 48px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border-color-subtle);
+  background-color: var(--background-color-base);
+}
+
+.wiki-minute-library-page__header-title,
+.wiki-minute-modal__title {
+  margin: 0;
+  color: var(--color-emphasized);
+  font-family: var(--font-family-system-sans);
+  font-size: 18px;
+  line-height: 22px;
+  font-weight: var(--font-weight-bold);
+}
+
+.wiki-minute-library-page__list {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--background-color-base);
+}
+
+.wiki-minute-library-item {
+  display: grid;
+  grid-template-columns: 6rem 1fr;
+  gap: 12px;
+  align-items: center;
+  border: 0;
+  border-bottom: 1px solid var(--border-color-subtle);
+  background-color: var(--background-color-base);
+  padding: 12px 16px;
+  text-align: left;
+}
+
+.wiki-minute-library-item__thumbnail {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--border-color-subtle);
+  border-radius: var(--border-radius-base);
+  object-fit: cover;
+  background-color: #000;
+}
+
+.wiki-minute-library-item__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wiki-minute-library-item__title {
+  color: var(--color-base);
+  font-size: 16px;
+  line-height: 22px;
+}
+
+.wiki-minute-library-item__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-progressive);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.wiki-minute-library-item__status :deep(.cdx-icon) {
+  width: 14px;
+  height: 14px;
+}
+
+.wiki-minute-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.wiki-minute-modal__overlay {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgb(0 0 0 / 45%);
+}
+
+.wiki-minute-modal__panel {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: min(100%, 32rem);
+  max-height: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 12px 12px 0 0;
+  background-color: var(--background-color-base);
+}
+
+.wiki-minute-modal__player {
+  display: block;
+  width: 100%;
+  height: auto;
+  background-color: #000;
 }
 
 .contributor-sheet {
@@ -3855,12 +4425,14 @@ function dismissContributorSheet() {
 }
 
 .progression-item__title {
+  color: var(--color-base);
   font-size: 16px;
   line-height: 22px;
 }
 
 .progression-item__description,
 .progression-item__duration {
+  color: var(--color-subtle);
   font-size: 14px;
   line-height: 22px;
 }
@@ -3954,20 +4526,22 @@ function dismissContributorSheet() {
 
 @keyframes homepage-level-chip-glow {
   0% {
-    box-shadow: 0 0 0 0 rgb(54 102 216 / 0%);
     transform: scale(1);
   }
 
   35% {
-    box-shadow: 0 0 0 6px rgb(54 102 216 / 16%);
     transform: scale(1.04);
   }
 
+  60% {
+    transform: scale(1.02);
+  }
+
   100% {
-    box-shadow: 0 0 0 0 rgb(54 102 216 / 0%);
     transform: scale(1);
   }
 }
+
 
 .article-page {
   display: flex;
@@ -4150,7 +4724,7 @@ function dismissContributorSheet() {
   gap: 16px;
   border: 1px solid var(--border-color-muted);
   border-radius: var(--border-radius-base);
-  background-color: var(--background-color-neutral-subtle);
+  background-color: var(--background-color-progressive-subtle);
   box-shadow: 0 6px 16px rgb(0 0 0 / 0.12);
   padding: 12px;
   text-align: left;
