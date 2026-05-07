@@ -444,15 +444,6 @@ const thanksCount = ref( 0 );
 const streakCount = ref( 0 );
 const isProgressionExpanded = ref( false );
 const suggestedEditTemplates = {
-  addCitation: {
-    taskTitle: 'Add a citation',
-    taskDescription:
-      'This information has no source. Help readers understand where this information is coming from by adding a citation.',
-    primaryLabel: 'Add citation',
-    secondaryLabel: 'Dismiss',
-    successTitle: 'Added a citation',
-    successMessage: 'Thanks for making the source clearer.'
-  },
   convertReference: {
     taskTitle: 'Convert reference',
     taskDescription:
@@ -640,60 +631,49 @@ const suggestedEdits = ref( [
     topicTags: [ 'Architecture', 'Europe', 'History' ]
   } ),
   buildSuggestedEdit( {
-    key: 'ada-citation',
-    sequenceNumber: 4,
-    template: 'addCitation',
-    articleTitle: 'Ada Lovelace',
-    articleDescription: 'English mathematician and writer',
-    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/a/a4/Ada_Lovelace_portrait.jpg',
-    articleSnippetHtml:
-      'Lovelace is often regarded as the first computer programmer because her notes included a method for calculating Bernoulli numbers on Babbage’s machine.',
-    question: 'Add a citation to support this statement?'
-  } ),
-  buildSuggestedEdit( {
     key: 'apollo-convert-ref',
-    sequenceNumber: 5,
+    sequenceNumber: 4,
     template: 'convertReference',
     articleTitle: 'Apollo 11',
     articleDescription: 'First crewed Moon landing mission',
     articleImage: 'https://upload.wikimedia.org/wikipedia/commons/9/9c/Apollo_11_insignia.png',
     articleSnippetHtml:
-      'Apollo 11 landed the first two people on the Moon in July 1969.<sup>[book]</sup>',
+      'Apollo 11 landed the first two people on the Moon in July 1969.<sup><span class="suggested-edit-card__highlight">[book]</span></sup>',
     question: 'Convert this source into a full reference?'
   } ),
   buildSuggestedEdit( {
     key: 'jane-external-link',
-    sequenceNumber: 6,
+    sequenceNumber: 5,
     template: 'externalLink',
     articleTitle: 'Jane Austen',
     articleDescription: 'English novelist',
     articleImage: 'https://upload.wikimedia.org/wikipedia/commons/c/cc/CassandraAusten-JaneAusten%28c.1810%29_hires.jpg',
     articleSnippetHtml:
-      'Austen’s novels critique the British landed gentry and often focus on women’s dependence on marriage. See also <a href="#" class="suggested-edit-card__link">this fan website</a> for a character guide.'
+      'Austen’s novels critique the British landed gentry and often focus on women’s dependence on marriage. See also <a href="#" class="suggested-edit-card__link"><span class="suggested-edit-card__highlight">this fan website</span></a> for a character guide.'
   } ),
   buildSuggestedEdit( {
     key: 'python-heading',
-    sequenceNumber: 7,
+    sequenceNumber: 6,
     template: 'headingLevel',
     articleTitle: 'Python (programming language)',
     articleDescription: 'High-level programming language',
     articleImage: 'https://upload.wikimedia.org/wikipedia/commons/c/c3/Python-logo-notext.svg',
     articleSnippetHtml:
-      '<strong>== History ==</strong><br><strong>==== Design philosophy ====</strong><br>Python emphasizes code readability and a large standard library.'
+      '<strong>== History ==</strong><br><strong><span class="suggested-edit-card__highlight">==== Design philosophy ====</span></strong><br>Python emphasizes code readability and a large standard library.'
   } ),
   buildSuggestedEdit( {
     key: 'hubble-caption',
-    sequenceNumber: 8,
+    sequenceNumber: 7,
     template: 'imageCaption',
     articleTitle: 'Hubble Space Telescope',
     articleDescription: 'Space telescope in low Earth orbit',
     articleImage: 'https://upload.wikimedia.org/wikipedia/commons/3/3f/HST-SM4.jpeg',
     articleSnippetHtml:
-      '[Image inserted here with no caption]<br>The telescope was launched in 1990 and remains one of the most productive scientific instruments ever built.'
+      '<span class="suggested-edit-card__highlight">[Image inserted here with no caption]</span><br>The telescope was launched in 1990 and remains one of the most productive scientific instruments ever built.'
   } ),
   buildSuggestedEdit( {
     key: 'newyork-redirect',
-    sequenceNumber: 9,
+    sequenceNumber: 8,
     template: 'redirectLink',
     articleTitle: 'New York City',
     articleDescription: 'Most populous city in the United States',
@@ -705,7 +685,7 @@ const suggestedEdits = ref( [
   } ),
   buildSuggestedEdit( {
     key: 'wwii-year-link',
-    sequenceNumber: 10,
+    sequenceNumber: 9,
     template: 'yearLink',
     articleTitle: 'World War II',
     articleDescription: 'Global war from 1939 to 1945',
@@ -717,77 +697,65 @@ const suggestedEdits = ref( [
   } ),
   buildSuggestedEdit( {
     key: 'einstein-cliche',
-    sequenceNumber: 11,
+    sequenceNumber: 10,
     template: 'cliche',
     articleTitle: 'Albert Einstein',
     articleDescription: 'German-born theoretical physicist',
     articleImage: 'https://upload.wikimedia.org/wikipedia/commons/d/d3/Albert_Einstein_Head.jpg',
     articleSnippetHtml:
-      'Einstein’s 1905 papers turned physics upside down and changed the field forever.',
+      'Einstein’s 1905 papers <span class="suggested-edit-card__highlight">turned physics upside down</span> and changed the field forever.',
     resolvedSnippetHtml:
       'Einstein’s 1905 papers significantly changed the development of modern physics.'
   } ),
   buildSuggestedEdit( {
     key: 'olympics-relative-time',
-    sequenceNumber: 12,
+    sequenceNumber: 11,
     template: 'relativeTime',
     articleTitle: '2024 Summer Olympics',
     articleDescription: 'International multi-sport event in Paris',
     articleImage: 'https://upload.wikimedia.org/wikipedia/commons/5/57/Paris_2024_logo.svg',
     articleSnippetHtml:
-      'The event concluded last summer after two weeks of competition in Paris.',
+      'The event concluded <span class="suggested-edit-card__highlight">last summer</span> after two weeks of competition in Paris.',
     resolvedSnippetHtml:
       'The event concluded on 11 August 2024 after two weeks of competition in Paris.'
   } ),
   buildSuggestedEdit( {
     key: 'tesla-editorial',
-    sequenceNumber: 13,
+    sequenceNumber: 12,
     template: 'editorialLanguage',
     articleTitle: 'Nikola Tesla',
     articleDescription: 'Inventor and electrical engineer',
     articleImage: 'https://upload.wikimedia.org/wikipedia/commons/d/d4/N.Tesla.JPG',
     articleSnippetHtml:
-      'Tesla’s visionary genius made him one of the most brilliant inventors in history.',
+      'Tesla’s <span class="suggested-edit-card__highlight">visionary genius</span> made him one of the most brilliant inventors in history.',
     resolvedSnippetHtml:
       'Tesla is widely known for his work in electrical engineering and wireless communication.'
   } ),
   buildSuggestedEdit( {
     key: 'wright-change-term',
-    sequenceNumber: 14,
+    sequenceNumber: 13,
     template: 'changeTerm',
     articleTitle: 'Wright brothers',
     articleDescription: 'American aviation pioneers',
     articleImage: 'https://upload.wikimedia.org/wikipedia/commons/a/af/Orville_Wright_1905-crop.jpg',
     articleSnippetHtml:
-      'Their work on powered aircraft helped define the early history of human flight.',
+      'Their work on powered <span class="suggested-edit-card__highlight">aircraft</span> helped define the early history of human flight.',
     resolvedSnippetHtml:
       'Their work on powered airplane design helped define the early history of human flight.'
   } ),
   buildSuggestedEdit( {
     key: 'mlk-ai',
-    sequenceNumber: 15,
+    sequenceNumber: 14,
     template: 'aiContent',
     articleTitle: 'Martin Luther King Jr.',
     articleDescription: 'American civil rights leader',
     articleImage: 'https://upload.wikimedia.org/wikipedia/commons/0/05/Martin_Luther_King%2C_Jr..jpg',
     articleSnippetHtml:
-      'King was an inspirational figure whose universally beloved speeches flawlessly transformed the soul of a nation in every possible way.'
-  } ),
-  buildSuggestedEdit( {
-    key: 'picasso-citation',
-    sequenceNumber: 16,
-    template: 'addCitation',
-    articleTitle: 'Pablo Picasso',
-    articleDescription: 'Spanish painter, sculptor, and printmaker',
-    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/9/98/Pablo_picasso_1.jpg',
-    articleSnippetHtml:
-      'Picasso’s Blue Period had a strong influence on the development of modern European painting in the early 20th century.',
-    question: 'Add a citation to support this statement?',
-    topicTags: [ 'Art', 'Europe', 'Biography (all)' ]
+      'King was an <span class="suggested-edit-card__highlight">inspirational figure</span> whose universally beloved speeches flawlessly transformed the soul of a nation in every possible way.'
   } ),
   buildSuggestedEdit( {
     key: 'rome-specific-link',
-    sequenceNumber: 17,
+    sequenceNumber: 15,
     template: 'specificPage',
     articleTitle: 'Rome',
     articleDescription: 'Capital city of Italy',
@@ -799,59 +767,59 @@ const suggestedEdits = ref( [
   } ),
   buildSuggestedEdit( {
     key: 'turing-convert-ref',
-    sequenceNumber: 18,
+    sequenceNumber: 16,
     template: 'convertReference',
     articleTitle: 'Alan Turing',
     articleDescription: 'English mathematician and computer scientist',
     articleImage: 'https://upload.wikimedia.org/wikipedia/commons/a/a1/Alan_Turing_Aged_16.jpg',
     articleSnippetHtml:
-      'Turing played a key role in cracking encrypted German naval communications during World War II.<sup>[news]</sup>'
+      'Turing played a key role in cracking encrypted German naval communications during World War II.<sup><span class="suggested-edit-card__highlight">[news]</span></sup>'
   } ),
   buildSuggestedEdit( {
     key: 'moon-duplicate-link',
-    sequenceNumber: 19,
+    sequenceNumber: 17,
     template: 'duplicateLink',
     articleTitle: 'Moon',
     articleDescription: 'Earth’s only natural satellite',
     articleImage: 'https://upload.wikimedia.org/wikipedia/commons/e/e1/FullMoon2010.jpg',
     articleSnippetHtml:
-      'The <a href="#" class="suggested-edit-card__link"><span class="suggested-edit-card__highlight">Moon</span></a> is Earth’s only natural satellite. The Moon influences tides and stabilizes Earth’s axial tilt.',
+      'The <a href="#" class="suggested-edit-card__link"><span class="suggested-edit-card__highlight">Moon</span></a> is Earth’s only natural satellite. The <a href="#" class="suggested-edit-card__link"><span class="suggested-edit-card__highlight">Moon</span></a> influences tides and stabilizes Earth’s axial tilt.',
     resolvedSnippetHtml:
       'The <a href="#" class="suggested-edit-card__link">Moon</a> is Earth’s only natural satellite. It influences tides and stabilizes Earth’s axial tilt.'
   } ),
   buildSuggestedEdit( {
     key: 'london-external-link',
-    sequenceNumber: 20,
+    sequenceNumber: 18,
     template: 'externalLink',
     articleTitle: 'London',
     articleDescription: 'Capital city of England and the United Kingdom',
     articleImage: 'https://upload.wikimedia.org/wikipedia/commons/c/cd/London_Montage_L.jpg',
     articleSnippetHtml:
-      'London is one of the world’s leading financial centers. For restaurant recommendations, see <a href="#" class="suggested-edit-card__link">this travel blog</a>.'
+      'London is one of the world’s leading financial centers. For restaurant recommendations, see <a href="#" class="suggested-edit-card__link"><span class="suggested-edit-card__highlight">this travel blog</span></a>.'
   } ),
   buildSuggestedEdit( {
     key: 'mars-heading',
-    sequenceNumber: 21,
+    sequenceNumber: 19,
     template: 'headingLevel',
     articleTitle: 'Mars',
     articleDescription: 'Fourth planet from the Sun',
     articleImage: 'https://upload.wikimedia.org/wikipedia/commons/0/02/OSIRIS_Mars_true_color.jpg',
     articleSnippetHtml:
-      '<strong>== Geology ==</strong><br><strong>==== Surface features ====</strong><br>Mars has volcanoes, valleys, deserts, and polar ice caps.'
+      '<strong>== Geology ==</strong><br><strong><span class="suggested-edit-card__highlight">==== Surface features ====</span></strong><br>Mars has volcanoes, valleys, deserts, and polar ice caps.'
   } ),
   buildSuggestedEdit( {
     key: 'notredame-caption',
-    sequenceNumber: 22,
+    sequenceNumber: 20,
     template: 'imageCaption',
     articleTitle: 'Notre-Dame de Paris',
     articleDescription: 'Medieval Catholic cathedral in Paris',
     articleImage: 'https://upload.wikimedia.org/wikipedia/commons/a/a6/Notre-Dame_de_Paris_2013-07.JPG',
     articleSnippetHtml:
-      '[Image inserted here with no caption]<br>The cathedral is considered one of the finest examples of French Gothic architecture.'
+      '<span class="suggested-edit-card__highlight">[Image inserted here with no caption]</span><br>The cathedral is considered one of the finest examples of French Gothic architecture.'
   } ),
   buildSuggestedEdit( {
     key: 'canada-spelling',
-    sequenceNumber: 23,
+    sequenceNumber: 21,
     template: 'englishSpelling',
     articleTitle: 'Canada',
     articleDescription: 'Country in North America',
@@ -864,7 +832,7 @@ const suggestedEdits = ref( [
   } ),
   buildSuggestedEdit( {
     key: 'berlin-redirect',
-    sequenceNumber: 24,
+    sequenceNumber: 22,
     template: 'redirectLink',
     articleTitle: 'Berlin',
     articleDescription: 'Capital and largest city of Germany',
@@ -876,7 +844,7 @@ const suggestedEdits = ref( [
   } ),
   buildSuggestedEdit( {
     key: 'internet-year-link',
-    sequenceNumber: 25,
+    sequenceNumber: 23,
     template: 'yearLink',
     articleTitle: 'Internet',
     articleDescription: 'Global system of computer networks',
@@ -888,43 +856,43 @@ const suggestedEdits = ref( [
   } ),
   buildSuggestedEdit( {
     key: 'oceans-cliche',
-    sequenceNumber: 26,
+    sequenceNumber: 24,
     template: 'cliche',
     articleTitle: 'Pacific Ocean',
     articleDescription: 'Largest and deepest ocean on Earth',
     articleImage: 'https://upload.wikimedia.org/wikipedia/commons/6/6f/Pacific_Ocean_-_en.png',
     articleSnippetHtml:
-      'The Pacific plays a huge role in global climate and trade routes.',
+      'The Pacific plays <span class="suggested-edit-card__highlight">a huge role</span> in global climate and trade routes.',
     resolvedSnippetHtml:
       'The Pacific has an important role in global climate and trade routes.'
   } ),
   buildSuggestedEdit( {
     key: 'everest-relative-time',
-    sequenceNumber: 27,
+    sequenceNumber: 25,
     template: 'relativeTime',
     articleTitle: 'Mount Everest',
     articleDescription: 'Earth’s highest mountain above sea level',
     articleImage: 'https://upload.wikimedia.org/wikipedia/commons/d/d1/Mount_Everest_as_seen_from_Drukair2_PLW_edit.jpg',
     articleSnippetHtml:
-      'The climbing season reopened last year after weather disruptions.',
+      'The climbing season reopened <span class="suggested-edit-card__highlight">last year</span> after weather disruptions.',
     resolvedSnippetHtml:
       'The climbing season reopened in 2025 after weather disruptions.'
   } ),
   buildSuggestedEdit( {
     key: 'shakespeare-editorial',
-    sequenceNumber: 28,
+    sequenceNumber: 26,
     template: 'editorialLanguage',
     articleTitle: 'William Shakespeare',
     articleDescription: 'English playwright and poet',
     articleImage: 'https://upload.wikimedia.org/wikipedia/commons/a/a2/Shakespeare.jpg',
     articleSnippetHtml:
-      'Shakespeare wrote the most extraordinary plays in the history of the English language.',
+      'Shakespeare wrote <span class="suggested-edit-card__highlight">the most extraordinary plays</span> in the history of the English language.',
     resolvedSnippetHtml:
       'Shakespeare wrote plays that are among the most studied works in the English language.'
   } ),
   buildSuggestedEdit( {
     key: 'boeing-change-term',
-    sequenceNumber: 29,
+    sequenceNumber: 27,
     template: 'changeTerm',
     articleTitle: 'Boeing 747',
     articleDescription: 'American wide-body commercial jet airliner',
@@ -936,34 +904,23 @@ const suggestedEdits = ref( [
   } ),
   buildSuggestedEdit( {
     key: 'chatgpt-ai',
-    sequenceNumber: 30,
+    sequenceNumber: 28,
     template: 'aiContent',
     articleTitle: 'ChatGPT',
     articleDescription: 'Artificial intelligence chatbot by OpenAI',
     articleImage: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg',
     articleSnippetHtml:
-      'The service instantly revolutionized every field of knowledge and produced perfectly accurate answers for nearly all users.'
-  } ),
-  buildSuggestedEdit( {
-    key: 'solar-citation',
-    sequenceNumber: 31,
-    template: 'addCitation',
-    articleTitle: 'Solar eclipse',
-    articleDescription: 'Astronomical event in which the Moon obscures the Sun',
-    articleImage: 'https://upload.wikimedia.org/wikipedia/commons/1/14/1999_Total_Eclipse.jpg',
-    articleSnippetHtml:
-      'Total solar eclipses can significantly affect local animal behavior and ambient temperature.',
-    question: 'Add a citation to support this statement?'
+      'The service instantly revolutionized every field of knowledge and produced <span class="suggested-edit-card__highlight">perfectly accurate answers</span> for nearly all users.'
   } ),
   buildSuggestedEdit( {
     key: 'newton-convert-ref',
-    sequenceNumber: 32,
+    sequenceNumber: 29,
     template: 'convertReference',
     articleTitle: 'Isaac Newton',
     articleDescription: 'English mathematician, physicist, and astronomer',
     articleImage: 'https://upload.wikimedia.org/wikipedia/commons/d/d4/Sir_Isaac_Newton_%281643-1727%29.jpg',
     articleSnippetHtml:
-      'Newton formulated the laws of motion and universal gravitation that dominated scientific thought for centuries.<sup>[website]</sup>'
+      'Newton formulated the laws of motion and universal gravitation that dominated scientific thought for centuries.<sup><span class="suggested-edit-card__highlight">[website]</span></sup>'
   } )
 ] );
 
@@ -1051,7 +1008,7 @@ const currentSuggestedEdit = computed(
   () => remainingSuggestedEdits.value[ currentSuggestedEditIndex.value ] || null
 );
 const currentSuggestedEditSequenceNumber = computed(
-  () => currentSuggestedEdit.value?.sequenceNumber || 1
+  () => Math.min( currentSuggestedEditIndex.value + 1, remainingSuggestedEdits.value.length || 1 )
 );
 const currentSurveyQuestionNumber = computed( () =>
   currentSurveyStepIndex.value > 0 ? currentSurveyStepIndex.value : 0
@@ -1200,7 +1157,7 @@ function reviseSurveyResponses() {
   currentView.value = 'survey';
 }
 
-function completeCurrentTask() {
+function completeCurrentTask( event ) {
   const index = currentTaskIndex.value;
 
   if ( index === -1 ) {
@@ -1208,6 +1165,26 @@ function completeCurrentTask() {
   }
 
   const task = progressionTasks.value[ index ];
+  const isModifiedClick = Boolean(
+    event?.metaKey || event?.ctrlKey || event?.shiftKey || event?.altKey
+  );
+
+  if ( isModifiedClick ) {
+    markTaskCompleted( task.key );
+
+    if ( task.action === 'enrich' ) {
+      editsCount.value += 4;
+      thanksCount.value += 2;
+      streakCount.value = Math.max( streakCount.value, 3 );
+    }
+
+    if ( task.key === 'first-edit' ) {
+      editsCount.value += 1;
+      streakCount.value = Math.max( streakCount.value, 1 );
+    }
+
+    return;
+  }
 
   if ( task.action === 'survey' ) {
     currentSurveyStepIndex.value = Math.max( 1, surveySteps.value.findIndex( ( step ) => step === resumeSurveyStepKey.value ) );
@@ -1989,7 +1966,7 @@ function dismissContributorSheet() {
 
       <section class="suggested-edits-page">
         <p class="suggested-edits-page__count">
-          <strong>{{ currentSuggestedEditSequenceNumber }}</strong> of 32 suggestions
+          <strong>{{ currentSuggestedEditSequenceNumber }}</strong> of {{ remainingSuggestedEdits.length }} suggestions
         </p>
 
         <div
@@ -2056,7 +2033,10 @@ function dismissContributorSheet() {
                 <p class="suggested-edit-card__panel-description">
                   {{ item.suggestion.taskDescription }}
                 </p>
-                <p v-if="item.suggestion.question" class="suggested-edit-card__question">
+                <p
+                  v-if="item.suggestion.template === 'englishSpelling' && item.suggestion.question"
+                  class="suggested-edit-card__question"
+                >
                   {{ item.suggestion.question }}
                 </p>
 
@@ -2067,9 +2047,6 @@ function dismissContributorSheet() {
                   <CdxButton @click="resolveSuggestedEdit( 'dismiss', item.suggestion.key )">
                     {{ item.suggestion.secondaryLabel }}
                   </CdxButton>
-                  <button class="suggested-edit-card__menu" type="button" aria-label="More actions">
-                    ...
-                  </button>
                 </div>
               </div>
             </article>
@@ -3788,14 +3765,15 @@ function dismissContributorSheet() {
   text-decoration: none;
 }
 
-.suggested-edit-card__highlight {
-  background-image: linear-gradient(
-    to top,
-    rgb(217 226 255 / 100%) 0,
-    rgb(217 226 255 / 100%) 38%,
-    transparent 38%,
-    transparent 100%
-  );
+.suggested-edit-card__excerpt :deep(.suggested-edit-card__highlight) {
+  display: inline-block;
+  height: 24px;
+  padding: 0 4px;
+  background-color: #d9e2ff;
+  line-height: 24px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  vertical-align: baseline;
 }
 
 .suggested-edit-card__panel {
