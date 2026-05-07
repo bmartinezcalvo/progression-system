@@ -390,7 +390,7 @@ function createBeginnerTasks() {
       key: 'first-edit',
       title: 'First suggested edit',
       description: 'A small and easy edit picked for you',
-      duration: '5 min',
+      duration: '2 min',
       buttonLabel: 'See suggested edits',
       action: 'edit',
       completed: false
@@ -399,7 +399,7 @@ function createBeginnerTasks() {
       key: 'five-pillars',
       title: 'Five Pillars quiz',
       description: 'Review the core principles that guide editing on Wikipedia',
-      duration: '15 min',
+      duration: '5 min',
       buttonLabel: 'Review pillars',
       action: 'quiz',
       completed: false
@@ -408,7 +408,7 @@ function createBeginnerTasks() {
       key: 'enrich-article',
       title: 'Enrich an article',
       description: 'Choose one way to improve an article: citation, image, or link',
-      duration: '15 min',
+      duration: '10 min',
       buttonLabel: 'Enrich article',
       action: 'enrich',
       completed: false
@@ -1051,10 +1051,10 @@ const currentSuggestedEditSequenceNumber = computed(
   () => Math.min( currentSuggestedEditIndex.value + 1, remainingSuggestedEdits.value.length || 1 )
 );
 const hasCompletedWikiMinuteTask = computed(
-  () => progressionTasks.value.find( ( task ) => task.key === 'wiki-minute' )?.completed
+  () => hasContributorPath.value || progressionTasks.value.find( ( task ) => task.key === 'wiki-minute' )?.completed
 );
 const hasCompletedFirstEditTask = computed(
-  () => progressionTasks.value.find( ( task ) => task.key === 'first-edit' )?.completed
+  () => hasContributorPath.value || progressionTasks.value.find( ( task ) => task.key === 'first-edit' )?.completed
 );
 const featuredWikiMinuteVideo = computed(
   () => wikiMinuteVideos.find( ( video ) => video.key === 'volunteers-trust' ) || wikiMinuteVideos[ 0 ]
@@ -1582,6 +1582,7 @@ function triggerProfileBadgeGlow() {
     :header-mode="chromeHeaderMode"
     @go-home="goToHomepage"
     @go-article="goToArticle"
+    @log-out="currentView = 'signup'"
   >
     <section v-if="currentView === 'signup'" class="account-creation-page">
       <div class="account-creation-page__panel">

@@ -1,15 +1,19 @@
 <script setup>
-import { CdxButton, CdxIcon, CdxTextInput } from '@wikimedia/codex';
+import { ref } from 'vue';
+import { CdxButton, CdxIcon, CdxMenuButton, CdxTextInput } from '@wikimedia/codex';
 import {
   cdxIconAppearance,
   cdxIconArrowNext,
   cdxIconBell,
   cdxIconHistory,
+  cdxIconLogOut,
   cdxIconLogoMediaWiki,
   cdxIconLogoWikimedia,
   cdxIconMenu,
   cdxIconSearch,
   cdxIconTray,
+  cdxIconUserAvatar,
+  cdxIconUserContributions,
   cdxIconWatchlist
 } from '@wikimedia/codex-icons';
 
@@ -28,7 +32,7 @@ const props = defineProps( {
   }
 } );
 
-const emit = defineEmits( [ 'go-home', 'go-article' ] );
+const emit = defineEmits( [ 'go-home', 'go-article', 'log-out' ] );
 
 const WIKIPEDIA_WORDMARK_EN =
   'https://en.wikipedia.org/static/images/mobile/copyright/wikipedia-wordmark-en-25.svg';
@@ -59,6 +63,47 @@ const mobileLinks = [
   'Terms of Use',
   'Desktop view'
 ];
+
+const userMenuSelected = ref( null );
+const userMenuItems = [
+  {
+    label: 'CaptainBird',
+    value: 'profile',
+    icon: cdxIconUserAvatar,
+    boldLabel: true
+  },
+  {
+    label: 'Watchlist',
+    value: 'watchlist',
+    icon: cdxIconWatchlist,
+    boldLabel: true
+  },
+  {
+    label: 'Contributions',
+    value: 'contributions',
+    icon: cdxIconUserContributions,
+    boldLabel: true
+  },
+  {
+    label: 'Log out',
+    value: 'logout',
+    icon: cdxIconLogOut,
+    boldLabel: true
+  }
+];
+
+function onUserMenuSelect( value ) {
+  userMenuSelected.value = null;
+
+  if ( value === 'profile' ) {
+    emit( 'go-home' );
+    return;
+  }
+
+  if ( value === 'logout' ) {
+    emit( 'log-out' );
+  }
+}
 </script>
 
 <template>
@@ -129,14 +174,14 @@ const mobileLinks = [
           <CdxButton class="chrome-header__watchlist-button" weight="quiet" aria-label="Watchlist">
             <CdxIcon :icon="cdxIconWatchlist" />
           </CdxButton>
-          <button
-            class="chrome-header__user-avatar"
-            type="button"
-            aria-label="Homepage"
-            @click="emit( 'go-home' )"
+          <CdxMenuButton
+            v-model:selected="userMenuSelected"
+            class="chrome-header__user-menu"
+            :menu-items="userMenuItems"
+            @update:selected="onUserMenuSelect"
           >
-            Ca
-          </button>
+            <span class="chrome-header__user-avatar" aria-hidden="true">Ca</span>
+          </CdxMenuButton>
           </template>
         </div>
       </nav>
@@ -165,14 +210,14 @@ const mobileLinks = [
             <CdxIcon :icon="cdxIconBell" />
             <span class="chrome-header__notify-badge" aria-hidden="true">1</span>
           </CdxButton>
-          <button
-            class="chrome-header__user-avatar"
-            type="button"
-            aria-label="Homepage"
-            @click="emit( 'go-home' )"
+          <CdxMenuButton
+            v-model:selected="userMenuSelected"
+            class="chrome-header__user-menu"
+            :menu-items="userMenuItems"
+            @update:selected="onUserMenuSelect"
           >
-            Ca
-          </button>
+            <span class="chrome-header__user-avatar" aria-hidden="true">Ca</span>
+          </CdxMenuButton>
           </template>
         </div>
       </nav>
@@ -325,6 +370,30 @@ const mobileLinks = [
   -webkit-appearance: none;
   background-clip: padding-box;
   cursor: pointer;
+}
+
+.chrome-header__user-menu {
+  display: inline-flex;
+}
+
+.chrome-header__user-menu :deep(.cdx-button) {
+  min-width: 44px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.chrome-header__user-menu :deep(.cdx-button:hover),
+.chrome-header__user-menu :deep(.cdx-button:active),
+.chrome-header__user-menu :deep(.cdx-button.cdx-button--is-active) {
+  background: transparent;
+}
+
+.chrome-header__user-menu :deep(.cdx-menu-button__menu) {
+  min-width: 200px;
+  width: 200px;
 }
 
 .chrome-header__notify-button {
