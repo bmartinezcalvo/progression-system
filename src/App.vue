@@ -2385,196 +2385,202 @@ function triggerProfileBadgeGlow() {
         <a class="homepage__tab" href="#">Talk</a>
       </nav>
 
-      <section class="module module--path">
-        <div
-          class="progression-list"
-          :class="{ 'progression-list--collapsed': shouldCollapseProgression && !isProgressionExpanded }"
-        >
-          <article
-            v-for="( task, index ) in visibleTasks"
-            :key="task.key"
-            class="progression-item"
-            :class="{
-              'progression-item--complete': task.completed,
-              'progression-item--active': index === currentTaskIndex,
-              'progression-item--recently-completed': recentlyCompletedTaskKey === task.key
-            }"
-            @click="setActiveTask( task.key )"
-          >
-            <div class="progression-item__rail">
-              <div class="progression-item__marker">
-                <CdxIcon v-if="task.completed" :icon="cdxIconCheck" />
-                <span v-else>{{ index + 1 }}</span>
-              </div>
-              <div
-                v-if="index < progressionTasks.length - 1"
-                class="progression-item__line"
-              ></div>
+      <div class="homepage__layout">
+        <div class="homepage__path-column">
+          <section class="module module--path">
+            <div
+              class="progression-list"
+              :class="{ 'progression-list--collapsed': shouldCollapseProgression && !isProgressionExpanded }"
+            >
+              <article
+                v-for="( task, index ) in visibleTasks"
+                :key="task.key"
+                class="progression-item"
+                :class="{
+                  'progression-item--complete': task.completed,
+                  'progression-item--active': index === currentTaskIndex,
+                  'progression-item--recently-completed': recentlyCompletedTaskKey === task.key
+                }"
+                @click="setActiveTask( task.key )"
+              >
+                <div class="progression-item__rail">
+                  <div class="progression-item__marker">
+                    <CdxIcon v-if="task.completed" :icon="cdxIconCheck" />
+                    <span v-else>{{ index + 1 }}</span>
+                  </div>
+                  <div
+                    v-if="index < progressionTasks.length - 1"
+                    class="progression-item__line"
+                  ></div>
+                </div>
+
+                <div class="progression-item__content">
+                  <div class="progression-item__heading">
+                    <h2 class="progression-item__title">
+                      {{ task.title }}
+                    </h2>
+                    <span class="progression-item__duration">{{ task.duration }}</span>
+                  </div>
+
+                  <p class="progression-item__description">
+                    {{ task.description }}
+                  </p>
+
+                  <CdxButton
+                    v-if="index === currentTaskIndex"
+                    class="progression-item__button"
+                    action="progressive"
+                    weight="primary"
+                    size="small"
+                    @click.stop="completeCurrentTask"
+                  >
+                    <template #icon-end>
+                      <CdxIcon :icon="cdxIconArrowNext" />
+                    </template>
+                    {{ task.buttonLabel }}
+                  </CdxButton>
+                </div>
+              </article>
             </div>
 
-            <div class="progression-item__content">
-              <div class="progression-item__heading">
-                <h2 class="progression-item__title">
-                  {{ task.title }}
+          </section>
+        </div>
+
+        <div class="homepage__modules-column">
+          <section
+            v-if="hasCompletedFirstEditTask"
+            class="module module--suggested-edits"
+          >
+            <div class="module__suggested-edits-header">
+              <div>
+                <h2 class="module__title module__title--small">
+                  Suggested edits
                 </h2>
-                <span class="progression-item__duration">{{ task.duration }}</span>
+                <p class="module__body module__body--suggested-edits">
+                  1 of 324 suggestions
+                </p>
               </div>
-
-              <p class="progression-item__description">
-                {{ task.description }}
-              </p>
-
               <CdxButton
-                v-if="index === currentTaskIndex"
-                class="progression-item__button"
+                class="module__suggested-edits-link"
+                weight="quiet"
                 action="progressive"
-                weight="primary"
-                size="small"
-                @click.stop="completeCurrentTask"
+                @click="goToSuggestedEdits"
               >
-                <template #icon-end>
-                  <CdxIcon :icon="cdxIconArrowNext" />
-                </template>
-                {{ task.buttonLabel }}
+                View all
               </CdxButton>
             </div>
-          </article>
-        </div>
 
-      </section>
+            <div class="module__suggested-edits-carousel">
+              <CdxCard
+                v-for="suggestion in homepageSuggestedEditsPreview"
+                :key="suggestion.key"
+                class="module__suggested-edits-card"
+                :thumbnail="{ url: suggestion.articleImage }"
+              >
+                <template #title>
+                  {{ suggestion.articleTitle }}
+                </template>
+                <template #description>
+                  {{ suggestion.articleDescription }}
+                </template>
+              </CdxCard>
+            </div>
+          </section>
 
-      <section
-        v-if="hasCompletedFirstEditTask"
-        class="module module--suggested-edits"
-      >
-        <div class="module__suggested-edits-header">
-          <div>
-            <h2 class="module__title module__title--small">
-              Suggested edits
-            </h2>
-            <p class="module__body module__body--suggested-edits">
-              1 of 324 suggestions
-            </p>
-          </div>
-          <CdxButton
-            class="module__suggested-edits-link"
-            weight="quiet"
-            action="progressive"
-            @click="goToSuggestedEdits"
+          <section
+            v-if="hasCompletedWikiMinuteTask"
+            class="module module--wiki-minute"
           >
-            View all
-          </CdxButton>
-        </div>
+            <div class="module__wiki-minute-header">
+              <div>
+                <h2 class="module__title module__title--small">
+                  Wiki Minute videos
+                </h2>
+                <p class="module__body module__body--wiki-minute">
+                  1 min of knowledge
+                </p>
+              </div>
+              <CdxButton
+                class="module__wiki-minute-link"
+                weight="quiet"
+                action="progressive"
+                @click="goToWikiMinuteLibrary"
+              >
+                View all
+              </CdxButton>
+            </div>
 
-        <div class="module__suggested-edits-carousel">
-          <CdxCard
-            v-for="suggestion in homepageSuggestedEditsPreview"
-            :key="suggestion.key"
-            class="module__suggested-edits-card"
-            :thumbnail="{ url: suggestion.articleImage }"
-          >
+            <button
+              class="module__wiki-minute-feature"
+              type="button"
+              @click="openWikiMinuteModal( featuredWikiMinuteVideo )"
+            >
+              <video
+                class="module__wiki-minute-thumbnail"
+                :src="featuredWikiMinuteVideo.source"
+                muted
+                playsinline
+                preload="metadata"
+              ></video>
+              <span class="module__wiki-minute-title">{{ featuredWikiMinuteVideo.title }}</span>
+            </button>
+          </section>
+
+          <section class="module module--mentor">
+            <div class="module__mentor">
+              <img
+                class="module__mentor-avatar"
+                src="https://images.unsplash.com/photo-1500375592092-40eb2168fd21?auto=format&fit=crop&w=240&q=80"
+                alt="Mentor avatar"
+              >
+              <div class="module__mentor-copy">
+                <h2 class="module__title module__title--small">
+                  Raydann is your mentor
+                </h2>
+                <p class="module__body">
+                  You’ve been assigned an experienced editor to help you with editing
+                </p>
+                <CdxButton class="module__mentor-button" size="small">
+                  Ask your mentor
+                </CdxButton>
+              </div>
+            </div>
+          </section>
+
+          <section class="homepage__impact-grid">
+            <article class="impact-card">
+              <strong class="impact-card__value">
+                <CdxIcon :icon="cdxIconEdit" />
+                <span>{{ editsCount }}/5</span>
+              </strong>
+              <span class="impact-card__label">edits</span>
+            </article>
+            <article class="impact-card">
+              <strong class="impact-card__value">
+                <CdxIcon :icon="cdxIconHeart" />
+                <span>{{ thanksCount }}</span>
+              </strong>
+              <span class="impact-card__label">thanks</span>
+            </article>
+            <article class="impact-card">
+              <strong class="impact-card__value">
+                <CdxIcon :icon="cdxIconCalendar" />
+                <span>{{ streakCount }}</span>
+              </strong>
+              <span class="impact-card__label">streak days</span>
+            </article>
+          </section>
+
+          <CdxCard class="module-card-link module module--help" url="#">
             <template #title>
-              {{ suggestion.articleTitle }}
+              Get help with editing
             </template>
             <template #description>
-              {{ suggestion.articleDescription }}
+              Ask the help desk or read help pages
             </template>
           </CdxCard>
         </div>
-      </section>
-
-      <section
-        v-if="hasCompletedWikiMinuteTask"
-        class="module module--wiki-minute"
-      >
-        <div class="module__wiki-minute-header">
-          <div>
-            <h2 class="module__title module__title--small">
-              Wiki Minute videos
-            </h2>
-            <p class="module__body module__body--wiki-minute">
-              1 min of knowledge
-            </p>
-          </div>
-          <CdxButton
-            class="module__wiki-minute-link"
-            weight="quiet"
-            action="progressive"
-            @click="goToWikiMinuteLibrary"
-          >
-            View all
-          </CdxButton>
-        </div>
-
-        <button
-          class="module__wiki-minute-feature"
-          type="button"
-          @click="openWikiMinuteModal( featuredWikiMinuteVideo )"
-        >
-          <video
-            class="module__wiki-minute-thumbnail"
-            :src="featuredWikiMinuteVideo.source"
-            muted
-            playsinline
-            preload="metadata"
-          ></video>
-          <span class="module__wiki-minute-title">{{ featuredWikiMinuteVideo.title }}</span>
-        </button>
-      </section>
-
-      <section class="module module--mentor">
-        <div class="module__mentor">
-          <img
-            class="module__mentor-avatar"
-            src="https://images.unsplash.com/photo-1500375592092-40eb2168fd21?auto=format&fit=crop&w=240&q=80"
-            alt="Mentor avatar"
-          >
-          <div class="module__mentor-copy">
-            <h2 class="module__title module__title--small">
-              Raydann is your mentor
-            </h2>
-            <p class="module__body">
-              You’ve been assigned an experienced editor to help you with editing
-            </p>
-            <CdxButton class="module__mentor-button" size="small">
-              Ask your mentor
-            </CdxButton>
-          </div>
-        </div>
-      </section>
-
-      <section class="homepage__impact-grid">
-        <article class="impact-card">
-          <strong class="impact-card__value">
-            <CdxIcon :icon="cdxIconEdit" />
-            <span>{{ editsCount }}/5</span>
-          </strong>
-          <span class="impact-card__label">edits</span>
-        </article>
-        <article class="impact-card">
-          <strong class="impact-card__value">
-            <CdxIcon :icon="cdxIconHeart" />
-            <span>{{ thanksCount }}</span>
-          </strong>
-          <span class="impact-card__label">thanks</span>
-        </article>
-        <article class="impact-card">
-          <strong class="impact-card__value">
-            <CdxIcon :icon="cdxIconCalendar" />
-            <span>{{ streakCount }}</span>
-          </strong>
-          <span class="impact-card__label">streak days</span>
-        </article>
-      </section>
-
-      <CdxCard class="module-card-link" url="#">
-        <template #title>
-          Get help with editing
-        </template>
-        <template #description>
-          Ask the help desk or read help pages
-        </template>
-      </CdxCard>
+      </div>
     </section>
 
     <transition name="contributor-sheet-fade">
@@ -3283,6 +3289,23 @@ function triggerProfileBadgeGlow() {
 }
 
 .homepage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-150);
+}
+
+.homepage__layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-150);
+}
+
+.homepage__path-column,
+.homepage__modules-column {
+  min-width: 0;
+}
+
+.homepage__modules-column {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-150);
@@ -4845,6 +4868,72 @@ function triggerProfileBadgeGlow() {
   .suggested-edit-card {
     width: min(30rem, calc(100vw - 120px));
     flex-basis: min(30rem, calc(100vw - 120px));
+  }
+}
+
+@media (min-width: 1120px) {
+  .account-creation-page,
+  .survey-page,
+  .homepage,
+  .quiz-page,
+  .suggested-edits-page,
+  .article-page {
+    padding-inline: 44px;
+  }
+
+  .account-creation-page__panel,
+  .survey-page__panel {
+    margin-inline: auto;
+  }
+
+  .homepage,
+  .suggested-edits-page {
+    max-width: none;
+    padding-inline: 44px;
+  }
+
+  .homepage__layout {
+    display: grid;
+    grid-template-columns: minmax(0, 32rem) minmax(0, 1fr);
+    gap: 32px;
+    align-items: start;
+  }
+
+  .homepage__path-column {
+    position: sticky;
+    top: 16px;
+  }
+
+  .quiz-page {
+    max-width: none;
+    padding-inline: 44px;
+  }
+
+  .quiz-page__header {
+    width: 100%;
+  }
+
+  .quiz-page__panel {
+    max-width: 33rem;
+    margin-inline: auto;
+  }
+
+  .quiz-page__progress-block {
+    max-width: 33rem;
+    margin-inline: auto;
+  }
+
+  .article-path-entry {
+    right: auto;
+    left: 50%;
+    width: min(512px, calc(100vw - 88px));
+    max-width: 512px;
+    transform: translateX(-50%);
+  }
+
+  .article-path-entry-enter-from,
+  .article-path-entry-leave-to {
+    transform: translateX(-50%) translateY(18px);
   }
 }
 </style>
